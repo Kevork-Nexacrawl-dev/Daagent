@@ -1,0 +1,15 @@
+# Core LLM
+openai>=1.55.0
+
+# Web search (we'll use DuckDuckGo - free, no API key)
+ddgs>=0.3.0
+
+# Utilities
+python-dotenv>=1.0.0
+pydantic>=2.10.0
+rich>=13.9.4
+
+# Future tools (commented out for now)
+# anthropic>=0.40.0          # For Computer Use later
+# playwright>=1.48.0         # For browser automation later
+# schedule>=1.2.0            # For scheduling later
