@@ -56,3 +56,6 @@ sessions/
 build/
 dist/
 *.egg-info/
+
+# Directories
+workspace/

@@ -240,6 +240,81 @@ python main.py "Execute Bash: rm -rf /"  # Will be blocked
 - 30-second timeout (configurable)
 - Isolated workspace in `./workspace/bash/`
 
+### PowerShell Execution (`execute_powershell`)
+
+Execute PowerShell commands with safety checks for Windows environments:
+
+```python
+# Safe commands
+python main.py "Execute PowerShell: Get-ChildItem *.py"
+
+# Dangerous commands (blocked by default)
+python main.py "Execute PowerShell: Remove-Item C:\ -Recurse -Force"  # Will be blocked
+```
+
+**Features:**
+- PowerShell Core (`pwsh`) preferred, falls back to Windows PowerShell
+- **Safety checks block dangerous operations:**
+  - Filesystem destruction (`Remove-Item -Recurse -Force C:\`)
+  - System operations (`Stop-Computer`, `Restart-Computer`)
+  - Remote code execution (`Invoke-WebRequest | Invoke-Expression`)
+  - Privilege escalation (`Start-Process -Verb RunAs`)
+  - Registry operations (`Remove-Item HKLM:\`)
+- `allow_dangerous=True` flag to bypass (use with caution)
+- 30-second timeout (configurable)
+- Isolated workspace in `./workspace/powershell/`
+
+### SQL Execution (`execute_sql`)
+
+Execute SQL queries against multiple database types:
+
+```python
+# SQLite (default)
+python main.py "Execute SQL: CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT)"
+
+# PostgreSQL
+python main.py "Execute SQL query on PostgreSQL database"
+
+# MySQL
+python main.py "Execute SQL query on MySQL database"
+```
+
+**Features:**
+- **Database support:** SQLite (default), PostgreSQL, MySQL
+- **SQLite:** Auto-creates databases in `./workspace/sql/`
+- **Connection parameters:** host, port, database, username, password
+- **Query types:** SELECT (returns rows), DML (returns affected rows)
+- **Structured results:** rows array, row_count, affected_rows, execution_time_ms
+- 30-second timeout (configurable)
+- Proper connection cleanup
+
+### Docker Execution (`execute_docker`)
+
+Execute Docker container management commands:
+
+```python
+# List containers
+python main.py "Execute Docker: list all running containers"
+
+# Run a container
+python main.py "Execute Docker: run nginx container"
+
+# Build an image
+python main.py "Execute Docker: build image from current directory"
+```
+
+**Features:**
+- **Operations:** build, run, exec, ps, logs, stop, rm
+- **Safety checks block dangerous operations:**
+  - Privileged mode (`--privileged`)
+  - Host network access (`--network=host`)
+  - Dangerous mounts (`-v /:/host`)
+- `allow_dangerous=True` flag to bypass (use with caution)
+- 60-second timeout (configurable, longer for builds)
+- Isolated workspace in `./workspace/docker/`
+- Auto-pull missing images
+- Auto-remove containers (`--rm` flag)
+
 ### Security Notes
 
 - **Bash safety is conservative** - many legitimate admin commands may be blocked

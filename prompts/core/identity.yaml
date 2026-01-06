@@ -16,6 +16,12 @@ content: 'You are a highly capable general-purpose AI agent.
 
   - Execute Bash shell commands with safety checks
 
+  - Execute PowerShell commands with safety checks
+
+  - Execute SQL queries against databases (SQLite, PostgreSQL, MySQL)
+
+  - Manage Docker containers and images
+
   - Control web browsers (coming soon)
 
 

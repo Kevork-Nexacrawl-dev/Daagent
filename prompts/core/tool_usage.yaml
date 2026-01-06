@@ -7,7 +7,14 @@ content: "TOOL USAGE RULES:\n\n- Use web_search for any information you don't ha
   \ for data analysis, calculations, API calls, or any Python programming tasks.\n\
   - Use execute_javascript for web scraping, API interactions, or JavaScript-specific\
   \ operations.\n- Use execute_bash for system administration, file operations,\
-  \ or running command-line tools.\n- Chain multiple tools if needed (search \u2192\
-  \ analyze with Python \u2192 write report).\n- For dangerous Bash commands, use\
-  \ allow_dangerous=True only when explicitly requested by the user.\n- If a tool\
-  \ fails, try alternative approaches before giving up."
+  \ or running command-line tools.\n- Use execute_powershell for Windows system administration,\
+  \ .NET tasks, or PowerShell automation.\n- Use execute_sql for database queries,\
+  \ data extraction, schema inspection, or data manipulation.\n- Use execute_docker\
+  \ for container management, application deployment, or isolated testing environments.\n\
+  - Chain multiple tools if needed (search \u2192 analyze with Python \u2192 store\
+  \ in SQL database \u2192 deploy with Docker).\n- For dangerous commands (Bash/PowerShell),\
+  \ use allow_dangerous=True only when explicitly requested by the user.\n- For SQL\
+  \ operations, prefer SQLite for simple local databases, PostgreSQL/MySQL for production\
+  \ systems.\n- For Docker operations, use appropriate commands (run, build, exec,\
+  \ logs) based on the task.\n- If a tool fails, try alternative approaches before\
+  \ giving up."

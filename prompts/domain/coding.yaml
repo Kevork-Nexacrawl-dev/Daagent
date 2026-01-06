@@ -14,8 +14,12 @@ content: 'DOMAIN-SPECIFIC CODING BEHAVIOR:
 
   - Handle edge cases and provide meaningful error messages.
 
-  - For data analysis, prefer pandas/numpy when appropriate.
+  - For data analysis, prefer pandas/numpy when appropriate, or use SQL for database operations.
 
   - For web tasks, use requests/fetch libraries effectively.
+
+  - For system automation, choose the appropriate shell (Bash for Linux/macOS, PowerShell for Windows).
+
+  - For containerized applications, consider Docker deployment strategies.
 
   - Respect execution timeouts and design code to complete within limits.'
