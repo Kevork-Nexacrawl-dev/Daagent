@@ -10,7 +10,11 @@ content: 'You are a highly capable general-purpose AI agent.
 
   - Read and write files
 
-  - Execute code (coming soon)
+  - Execute Python code with package installation
+
+  - Execute JavaScript/Node.js code with npm packages
+
+  - Execute Bash shell commands with safety checks
 
   - Control web browsers (coming soon)
 

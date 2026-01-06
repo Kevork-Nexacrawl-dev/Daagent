@@ -173,3 +173,77 @@ def execute_tool(expression: str) -> str:
 ```
 
 That's it! The tool will be automatically discovered and available to the agent.
+
+## Code Execution Tools
+
+Daagent includes built-in support for executing code in multiple languages:
+
+### Python Execution (`execute_python`)
+
+Execute Python code with optional pip package installation:
+
+```python
+# Example usage through agent
+python main.py "Execute Python: print('Hello from Daagent!')"
+
+# With package installation
+python main.py "Execute Python code that uses pandas for data analysis"
+```
+
+**Features:**
+- Inline Python execution with `python -c`
+- Automatic pip package installation
+- 30-second timeout (configurable)
+- Isolated workspace in `./workspace/python/`
+- Returns stdout, stderr, and return code
+
+### JavaScript Execution (`execute_javascript`)
+
+Execute Node.js code with optional npm package installation:
+
+```python
+# Example usage
+python main.py "Execute JavaScript: console.log('Hello from Node!')"
+
+# With packages
+python main.py "Execute JavaScript code that fetches web data"
+```
+
+**Features:**
+- Node.js execution via temp files
+- Automatic npm package installation
+- Node.js availability checking
+- 30-second timeout (configurable)
+- Isolated workspace in `./workspace/javascript/`
+
+### Bash Execution (`execute_bash`)
+
+Execute Bash commands with comprehensive safety checks:
+
+```python
+# Safe commands
+python main.py "Execute Bash: echo 'Hello World'"
+
+# Dangerous commands (blocked by default)
+python main.py "Execute Bash: rm -rf /"  # Will be blocked
+```
+
+**Features:**
+- Bash command execution
+- **Safety checks block dangerous operations:**
+  - Filesystem destruction (`rm -rf /`, `dd`, `mkfs`)
+  - System shutdown/reboot
+  - Fork bombs and resource exhaustion
+  - Privilege escalation
+  - Remote code execution
+- `allow_dangerous=True` flag to bypass (use with caution)
+- 30-second timeout (configurable)
+- Isolated workspace in `./workspace/bash/`
+
+### Security Notes
+
+- **Bash safety is conservative** - many legitimate admin commands may be blocked
+- Use `allow_dangerous=True` only when absolutely necessary
+- All execution happens in isolated workspace directories
+- Timeouts prevent infinite loops and hanging processes
+- Package installations are cached per workspace
