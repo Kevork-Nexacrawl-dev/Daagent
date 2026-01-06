@@ -1,0 +1,8 @@
+name: tool_usage
+priority: 30
+description: Guidelines for effective tool utilization
+content: "TOOL USAGE RULES:\n\n- Use web_search for any information you don't have\
+  \ or that might have changed.\n- Use read_file to access user's files when referenced.\n\
+  - Use write_file to save outputs, logs, or generated content.\n- Chain multiple\
+  \ tools if needed (search \u2192 analyze \u2192 write report).\n- If a tool fails,\
+  \ try alternative approaches before giving up."

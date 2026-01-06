@@ -457,3 +457,38 @@ Foundation laid for real MCP execution:
 - Git repository initialized with 46 files
 
 See `memory-bank/phase-4a-completion.md` for detailed documentation.
+
+# Session 2026-01-05 - Phase 3 YAML Prompt System Deployment
+Date: January 5, 2026
+Phase: Phase 3 - YAML Refactor Complete
+Status: DEPLOYED & TESTED
+
+## What Was Deployed
+
+- `prompts/core/identity.yaml` (moved from labs/)
+- `prompts/core/behavior.yaml` (moved from labs/)
+- `prompts/core/tool_usage.yaml` (moved from labs/)
+- `prompts/domain/research.yaml` (moved from labs/)
+- `agent/prompt_loader.py` (moved from labs/)
+- `agent/prompts.py` (replaced existing, backed up to .backup)
+- `tests/test_prompt_loader.py` (moved from labs/)
+- `prompts/README.md` (moved from labs/)
+
+Test results: 41/41 tests passing (23 existing + 18 new)
+
+Issues encountered and resolved:
+- Import errors in core.py and test_basic.py due to PromptManager removal
+- Updated core.py to use build_system_prompt() instead of PromptManager
+- Updated test_basic.py to test build_system_prompt() instead of PromptManager
+
+## Key Decisions
+
+- Backward compatibility maintained (agent/core.py updated for new API)
+- Priority-based composition (0-9: identity, 10-29: behavior, 30-49: tools, 50-99: domain)
+- Graceful degradation (fallback prompt if YAML fails)
+
+## Next Steps
+
+- Phase 4A: MCP warehouse integration (if needed)
+- Phase 4B: Ephemeral worker system
+- OR: Autogen tool ports

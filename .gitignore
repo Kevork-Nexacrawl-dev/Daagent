@@ -1,26 +1,58 @@
-# Environment
-.env
-venv/
+# Python
 __pycache__/
-*.pyc
-.pytest_cache/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# Environment variables (CRITICAL - contains API keys!)
+.env
+.env.local
+.env.*.local
 
 # IDE
 .vscode/
 .idea/
 *.swp
+*.swo
+*~
 
 # OS
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# Logs and data
-logs/
+# Logs
 *.log
-data/
-applied_jobs.json
-scheduled_tasks.json
+logs/
+*.log.*
 
-# Future additions
-screenshots/
-browser_profiles/
+# Test outputs
+.pytest_cache/
+.coverage
+htmlcov/
+*.cover
+
+# Temp files
+*.tmp
+*.temp
+test_*.txt
+temp/
+
+# MCP warehouse (if you don't want to include it)
+# Uncomment if mcp-module-manager should stay separate
+# mcp-module-manager/
+
+# User data
+user_data/
+sessions/
+*.session
+
+# Build artifacts
+build/
+dist/
+*.egg-info/

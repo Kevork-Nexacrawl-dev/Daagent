@@ -7,7 +7,7 @@ import json
 from openai import OpenAI
 
 from agent.config import Config, TaskType
-from agent.prompts import PromptManager
+from agent.prompts import build_system_prompt
 from agent.tool_registry import ToolRegistry
 
 
@@ -27,7 +27,6 @@ class UnifiedAgent:
         self.provider = Config.get_provider()
         self.client = self.provider.get_client()
         
-        self.prompt_manager = PromptManager()
         self.conversation_history = []
         
         # Initialize tool registry for auto-discovery
@@ -103,6 +102,9 @@ class UnifiedAgent:
                     temperature=Config.TEMPERATURE
                 )
                 
+                if response is None:
+                    raise Exception("API returned None response - possible rate limit or model issue")
+                
                 message = response.choices[0].message
                 
                 # Check if agent wants to use tools
@@ -169,7 +171,7 @@ class UnifiedAgent:
         """Build message list with system prompt and conversation history"""
         
         # Get composed system prompt from prompt manager
-        system_prompt = self.prompt_manager.compose()
+        system_prompt = build_system_prompt()
         
         messages = [
             {"role": "system", "content": system_prompt},

@@ -1,0 +1,88 @@
+name: Validate YAML Prompts
+
+on:
+  pull_request:
+    paths:
+      - 'prompts/**/*.yaml'
+      - 'prompts/schema.yaml'
+  push:
+    branches: [main]
+    paths:
+      - 'prompts/**/*.yaml'
+      - 'prompts/schema.yaml'
+
+jobs:
+  validate:
+    runs-on: windows-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install jsonschema pyyaml
+      
+      - name: Validate YAML schema
+        run: |
+          python -c "
+          import yaml
+          import json
+          from pathlib import Path
+          from jsonschema import validate, ValidationError
+          
+          # Load schema
+          with open('prompts/schema.yaml', 'r') as f:
+              schema = yaml.safe_load(f)
+          
+          # Validate all YAML files
+          errors = []
+          for yaml_file in Path('prompts').rglob('*.yaml'):
+              if yaml_file.name == 'schema.yaml':
+                  continue
+              try:
+                  with open(yaml_file, 'r') as f:
+                      prompt = yaml.safe_load(f)
+                  validate(instance=prompt, schema=schema)
+                  print(f'✅ {yaml_file} valid')
+              except ValidationError as e:
+                  errors.append(f'{yaml_file}: {e.message}')
+                  print(f'❌ {yaml_file} invalid: {e.message}')
+              except Exception as e:
+                  errors.append(f'{yaml_file}: {str(e)}')
+                  print(f'❌ {yaml_file} error: {str(e)}')
+          
+          if errors:
+              print('YAML validation failed:')
+              for error in errors:
+                  print(f'  - {error}')
+              exit(1)
+          else:
+              print('All YAML files valid!')
+          "
+      
+      - name: Test PromptManager loading
+        run: |
+          python -c "
+          from agent.prompts import PromptManager
+          try:
+              manager = PromptManager()
+              prompt = manager.build_prompt()
+              print(f'✅ PromptManager loaded successfully ({len(prompt)} chars)')
+              if 'Daagent' not in prompt:
+                  print('❌ Core identity not found in prompt')
+                  exit(1)
+              if 'DOER' not in prompt:
+                  print('❌ Core permissiveness not found in prompt')
+                  exit(1)
+          except Exception as e:
+              print(f'❌ PromptManager failed: {e}')
+              exit(1)
+          "

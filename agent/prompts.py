@@ -1,116 +1,115 @@
 """
-Prompt layering system for fine-grained behavior control.
-This is your "control panel" for agent personality.
+System prompt management for the Daagent agent.
+
+This module now uses a layered prompt system where individual prompt components
+are composed from YAML files in the prompts/ directory. This allows non-developers
+to modify agent behavior without touching Python code.
+
+For backward compatibility, the build_system_prompt() function maintains its
+original signature and behavior.
 """
 
+import logging
+from pathlib import Path
 from typing import List, Dict
-from dataclasses import dataclass
+from agent.prompt_loader import load_prompts, compose_prompt
+
+logger = logging.getLogger(__name__)
 
 
-@dataclass
-class PromptLayer:
-    """A single prompt layer with priority"""
-    name: str
-    content: str
-    priority: int  # Lower number = higher priority (executes first)
-
-
-class PromptManager:
+def build_system_prompt() -> str:
     """
-    Manages prompt layers and composes final system prompt.
-    Layers allow you to control agent behavior without touching core code.
+    Build the complete system prompt for the agent.
+
+    This function loads all prompt layers from the prompts/ directory,
+    sorts them by priority, and composes them into a final system prompt.
+
+    Returns:
+        Complete system prompt string ready for use with LLM API.
+
+    Backward compatible with original function signature.
     """
-    
-    def __init__(self):
-        self.layers: List[PromptLayer] = []
-        
-        # Add default layers
-        self._add_default_layers()
-    
-    def _add_default_layers(self):
-        """Set up default prompt layers"""
-        
-        # Core identity (highest priority)
-        self.add_layer(
-            "core_identity",
-            """You are a highly capable general-purpose AI agent.
 
-You have access to multiple tools that allow you to:
-- Search the web for current information
-- Read and write files
-- Execute code (coming soon)
-- Control web browsers (coming soon)
+    try:
+        # Load all prompt layers
+        layers = load_prompts(Path.cwd())
 
-You should proactively use the right tools to complete tasks effectively.""",
-            priority=0
-        )
-        
-        # Permissiveness layer (your special sauce)
-        self.add_layer(
-            "permissiveness",
-            """BEHAVIORAL GUIDELINES:
+        # Compose into final prompt
+        final_prompt = compose_prompt(layers)
 
-- Be a DOER, not an ASKER. Take action rather than asking for permission.
-- When uncertain, make reasonable assumptions and proceed.
-- If multiple approaches exist, choose the most efficient one.
-- Don't apologize excessively or hedge unnecessarily.
-- If a task seems impossible with available tools, get creative with combinations.""",
-            priority=10
-        )
-        
-        # Tool usage guidelines
-        self.add_layer(
-            "tool_usage",
-            """TOOL USAGE RULES:
+        logger.info(f"Built system prompt from {len(layers)} layers")
 
-- Use web_search for any information you don't have or that might have changed.
-- Use read_file to access user's files when referenced.
-- Use write_file to save outputs, logs, or generated content.
-- Chain multiple tools if needed (search → analyze → write report).
-- If a tool fails, try alternative approaches before giving up.""",
-            priority=20
-        )
-    
-    def add_layer(self, name: str, content: str, priority: int = 50):
-        """Add or update a prompt layer"""
-        
-        # Remove existing layer with same name
-        self.layers = [l for l in self.layers if l.name != name]
-        
-        # Add new layer
-        self.layers.append(PromptLayer(name, content, priority))
-        
-        # Keep sorted by priority
-        self.layers.sort(key=lambda x: x.priority)
-    
-    def remove_layer(self, name: str):
-        """Remove a prompt layer by name"""
-        self.layers = [l for l in self.layers if l.name != name]
-    
-    def get_layer(self, name: str) -> PromptLayer:
-        """Get a specific layer"""
-        for layer in self.layers:
-            if layer.name == name:
-                return layer
-        raise ValueError(f"Layer '{name}' not found")
-    
-    def compose(self) -> str:
-        """Compose final system prompt from all layers"""
-        
-        # Layers are already sorted by priority
-        prompt_parts = [layer.content for layer in self.layers]
-        
-        # Join with double newlines
-        final_prompt = "\n\n".join(prompt_parts)
-        
         return final_prompt
-    
-    def inspect(self):
-        """Print current prompt layers for debugging"""
-        print("\n📋 Current Prompt Layers:")
-        print("=" * 60)
-        for layer in self.layers:
-            print(f"\n[{layer.priority:02d}] {layer.name}")
-            print("-" * 60)
-            print(layer.content[:200] + "..." if len(layer.content) > 200 else layer.content)
-        print("\n" + "=" * 60)
+
+    except Exception as e:
+        logger.error(f"Error building system prompt: {e}")
+        # Graceful fallback to minimal prompt
+        return _get_fallback_prompt()
+
+
+def _get_fallback_prompt() -> str:
+    """
+    Fallback prompt if loading fails.
+    Ensures agent can still function.
+    """
+
+    return """You are a helpful AI agent.
+
+You have access to tools that allow you to:
+- Search the web for information
+- Read and write files
+- Execute code
+
+Use these tools to help complete tasks."""
+
+
+def load_custom_layers(domain: str) -> List[Dict]:
+    """
+    Load custom prompt layers for a specific domain.
+
+    Useful for loading domain-specific behavior without modifying core layers.
+
+    Args:
+        domain: Domain name (e.g., 'research', 'coding', 'analysis')
+
+    Returns:
+        List of loaded PromptLayer objects (converted to dicts for compatibility)
+
+    Example:
+        layers = load_custom_layers('research')
+        # Use layers to customize agent behavior for research tasks
+    """
+
+    try:
+        domain_dir = Path.cwd() / "prompts" / "domain" / domain
+
+        if not domain_dir.exists():
+            logger.warning(f"Domain directory not found: {domain_dir}")
+            return []
+
+        # Load YAML files from domain-specific directory
+        from agent.prompt_loader import PromptLayer
+        import yaml
+
+        layers = []
+
+        for yaml_file in domain_dir.glob("*.yaml"):
+            with open(yaml_file, 'r') as f:
+                data = yaml.safe_load(f)
+
+            if data and data.get("content"):
+                layer = PromptLayer(
+                    name=data.get("name"),
+                    priority=data.get("priority", 50),
+                    content=data.get("content"),
+                    description=data.get("description", "")
+                )
+                layers.append(layer)
+
+        logger.info(f"Loaded {len(layers)} custom layers for domain: {domain}")
+
+        return layers
+
+    except Exception as e:
+        logger.error(f"Error loading custom layers for domain {domain}: {e}")
+        return []

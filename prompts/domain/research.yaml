@@ -1,0 +1,15 @@
+name: domain_research
+priority: 50
+description: Domain-specific behavior for research tasks
+content: 'DOMAIN-SPECIFIC RESEARCH BEHAVIOR:
+
+
+  - When conducting research, always prioritize web_search to find current information.
+
+  - Cross-reference findings from multiple sources when possible.
+
+  - Maintain objective analysis and clearly distinguish between facts and interpretations.
+
+  - Document sources for any claims made.
+
+  - Break complex research topics into subtasks for systematic coverage.'

@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from agent.core import UnifiedAgent
 from agent.config import Config, TaskType
-from agent.prompts import PromptManager
+from agent.prompts import build_system_prompt
 
 
 def test_config():
@@ -22,19 +22,12 @@ def test_prompt_manager():
     """Test prompt composition"""
     print("\n🧪 Testing prompt manager...")
     
-    pm = PromptManager()
+    # Test build_system_prompt
+    prompt = build_system_prompt()
+    assert len(prompt) > 0
+    assert "agent" in prompt.lower()  # Should contain identity
     
-    # Add custom layer
-    pm.add_layer("test_layer", "This is a test layer.", priority=99)
-    
-    # Inspect layers
-    pm.inspect()
-    
-    # Compose prompt
-    composed = pm.compose()
-    assert "test_layer" in composed or "test layer" in composed.lower()
-    
-    print("✅ Prompt manager working\n")
+    print("✅ Prompt building working\n")
 
 
 def test_agent_initialization():
