@@ -67,6 +67,16 @@ Examples:
         help="Disable MCP warehouse integration"
     )
     parser.add_argument(
+        "--no-optimize",
+        action="store_true",
+        help="Disable all latency optimizations"
+    )
+    parser.add_argument(
+        "--clear-cache",
+        action="store_true",
+        help="Clear response cache and exit"
+    )
+    parser.add_argument(
         "--quiet",
         action="store_true",
         help="Hide tool call details"
@@ -92,6 +102,10 @@ Examples:
         Config.MAX_ITERATIONS = args.max_iterations
     if args.no_mcp:
         Config.ENABLE_MCP = False
+    if args.no_optimize:
+        Config.ENABLE_QUERY_CLASSIFICATION = False
+        Config.ENABLE_RESPONSE_CACHE = False
+        Config.ENABLE_LAZY_TOOLS = False
 
     # Validate configuration
     try:
@@ -99,6 +113,14 @@ Examples:
     except ValueError as e:
         console.print(f"[red]Configuration Error:[/red] {e}")
         sys.exit(1)
+
+    # Handle cache clearing
+    if args.clear_cache:
+        from agent.response_cache import ResponseCache
+        cache = ResponseCache()
+        cache.clear()
+        console.print("[green]Response cache cleared[/green]")
+        sys.exit(0)
 
     # Initialize agent
     agent = UnifiedAgent()

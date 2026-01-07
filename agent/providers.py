@@ -87,9 +87,53 @@ class TogetherProvider(LLMProvider):
         return "Together.ai"
 
 
+class GeminiProvider(LLMProvider):
+    """Google Gemini provider with free tier access"""
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+        self.base_url = "https://generativelanguage.googleapis.com/v1beta"
+        self.models = {
+            "conversational": "gemini-2.0-flash-exp",  # Free tier
+            "code_editing": "gemini-2.0-flash-exp"
+        }
+
+    def get_client(self) -> OpenAI:
+        return OpenAI(api_key=self.api_key, base_url=self.base_url)
+
+    def get_model_name(self, task_type: str) -> str:
+        return self.models.get(task_type, self.models["conversational"])
+
+    @property
+    def provider_name(self) -> str:
+        return "Google Gemini"
+
+
+class GrokProvider(LLMProvider):
+    """Grok premium provider via OpenRouter"""
+    def __init__(self, api_key: str):
+        self.api_key = api_key
+        self.base_url = "https://openrouter.ai/api/v1"
+        self.models = {
+            "conversational": "x-ai/grok-4-fast",  # Paid fallback
+            "code_editing": "x-ai/grok-4-fast"
+        }
+
+    def get_client(self) -> OpenAI:
+        return OpenAI(api_key=self.api_key, base_url=self.base_url)
+
+    def get_model_name(self, task_type: str) -> str:
+        return self.models.get(task_type, self.models["conversational"])
+
+    @property
+    def provider_name(self) -> str:
+        return "Grok Premium"
+
+
 # Provider registry
 PROVIDERS = {
     "openrouter": OpenRouterProvider,
     "huggingface": HuggingFaceProvider,
-    "together": TogetherProvider
+    "together": TogetherProvider,
+    "gemini": GeminiProvider,
+    "grok": GrokProvider
 }

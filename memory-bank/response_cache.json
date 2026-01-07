@@ -1,0 +1,14 @@
+{
+  "050579eeae87a043": {
+    "query": "test query",
+    "response": "test response",
+    "timestamp": "2026-01-06T19:37:52.547613",
+    "hits": 2
+  },
+  "9f86d081884c7d65": {
+    "query": "test",
+    "response": "response",
+    "timestamp": "2026-01-06T19:37:52.571615",
+    "hits": 2
+  }
+}

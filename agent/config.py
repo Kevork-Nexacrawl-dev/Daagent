@@ -25,6 +25,8 @@ class Config:
     # Provider API keys (NEW)
     HUGGINGFACE_API_KEY = os.getenv("HUGGINGFACE_API_KEY", "")
     TOGETHER_API_KEY = os.getenv("TOGETHER_API_KEY", "")
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
+    GROK_API_KEY = os.getenv("GROK_API_KEY", "")
     
     # Provider override from CLI (NEW)
     OVERRIDE_PROVIDER = None
@@ -67,6 +69,12 @@ class Config:
     
     # Enable/disable MCP warehouse
     ENABLE_MCP = os.getenv("ENABLE_MCP", "true").lower() == "true"
+    
+    # Latency optimization settings
+    ENABLE_QUERY_CLASSIFICATION = os.getenv("ENABLE_QUERY_CLASSIFICATION", "true").lower() == "true"
+    ENABLE_RESPONSE_CACHE = os.getenv("ENABLE_RESPONSE_CACHE", "true").lower() == "true"
+    ENABLE_LAZY_TOOLS = os.getenv("ENABLE_LAZY_TOOLS", "true").lower() == "true"
+    CACHE_TTL_HOURS = int(os.getenv("CACHE_TTL_HOURS", 24))
     
     @classmethod
     def get_model_for_task(cls, task_type: TaskType) -> str:
@@ -112,6 +120,10 @@ class Config:
             api_key = cls.HUGGINGFACE_API_KEY
         elif provider_name == "together":
             api_key = cls.TOGETHER_API_KEY
+        elif provider_name == "gemini":
+            api_key = cls.GEMINI_API_KEY
+        elif provider_name == "grok":
+            api_key = cls.GROK_API_KEY
         else:
             raise ValueError(f"No API key configured for {provider_name}")
         
@@ -125,7 +137,7 @@ class Config:
         """Enhanced validation with provider check"""
         provider = cls.OVERRIDE_PROVIDER or cls.PROVIDER
         
-        if provider not in ["openrouter", "huggingface", "together"]:
+        if provider not in ["openrouter", "huggingface", "together", "gemini", "grok"]:
             raise ValueError(f"Invalid PROVIDER: {provider}")
         
         # Check that provider's API key exists
@@ -135,6 +147,10 @@ class Config:
             raise ValueError("HUGGINGFACE_API_KEY not found in .env")
         elif provider == "together" and not cls.TOGETHER_API_KEY:
             raise ValueError("TOGETHER_API_KEY not found in .env")
+        elif provider == "gemini" and not cls.GEMINI_API_KEY:
+            raise ValueError("GEMINI_API_KEY not found in .env")
+        elif provider == "grok" and not cls.GROK_API_KEY:
+            raise ValueError("GROK_API_KEY not found in .env")
         
         # Print validation info
         provider_obj = cls.get_provider()

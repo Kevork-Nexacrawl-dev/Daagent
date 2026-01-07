@@ -1,0 +1,19 @@
+{
+  "timestamp": "2026-01-06T19:36:46.157286",
+  "providers": {
+    "openrouter": {
+      "requests_this_minute": 21,
+      "requests_this_hour": 101,
+      "last_reset_minute": "2026-01-06T19:36:46.121963",
+      "last_reset_hour": "2026-01-06T19:17:46.068814"
+    }
+  },
+  "usage_tracker": {
+    "openrouter": 16
+  },
+  "session_stats": {
+    "total_requests": 16,
+    "total_cost": 0.0,
+    "total_saved": 0.028128000000000004
+  }
+}
