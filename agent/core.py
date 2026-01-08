@@ -6,6 +6,10 @@ from typing import List, Dict, Any, Optional
 import json
 from openai import OpenAI
 
+from rich.live import Live
+from rich.markdown import Markdown
+from rich.console import Console
+
 from agent.config import Config, TaskType
 from agent.prompts import build_system_prompt
 from agent.tool_registry import ToolRegistry
@@ -270,6 +274,67 @@ class UnifiedAgent:
         # Rough conversion: ~4 chars per token
         return total_chars // 4
     
+    def _stream_response(self, client, model: str, messages: List[Dict], 
+                        tools=None, tool_choice=None) -> tuple[str, List]:
+        """
+        Stream LLM response with real-time display.
+        
+        Args:
+            client: LLM client
+            model: Model name
+            messages: Message history
+            tools: Tool schemas (optional)
+            tool_choice: Tool choice mode (optional)
+            
+        Returns:
+            Tuple of (complete_response, tool_calls_list)
+        """
+        accumulated_content = ""
+        tool_calls_accumulator = []
+        
+        # Create streaming request
+        stream = client.chat.completions.create(
+            model=model,
+            messages=messages,
+            tools=tools,
+            tool_choice=tool_choice,
+            temperature=Config.TEMPERATURE,
+            stream=True  # Enable streaming
+        )
+        
+        # Display streamed response in real-time
+        console = Console()
+        with Live("", refresh_per_second=20, console=console) as live:
+            for chunk in stream:
+                delta = chunk.choices[0].delta
+                
+                # Accumulate content
+                if delta.content:
+                    accumulated_content += delta.content
+                    live.update(Markdown(accumulated_content))
+                
+                # Collect tool calls
+                if delta.tool_calls:
+                    for tc in delta.tool_calls:
+                        # Initialize or update tool call
+                        if tc.index >= len(tool_calls_accumulator):
+                            tool_calls_accumulator.append({
+                                "id": tc.id,
+                                "type": "function",
+                                "function": {
+                                    "name": tc.function.name if tc.function.name else "",
+                                    "arguments": tc.function.arguments if tc.function.arguments else ""
+                                }
+                            })
+                        else:
+                            # Append to existing tool call arguments
+                            if tc.function.arguments:
+                                tool_calls_accumulator[tc.index]["function"]["arguments"] += tc.function.arguments
+        
+        print()  # Newline after streaming completes
+        
+        return accumulated_content, tool_calls_accumulator
+    
     def _execute_lite_mode(self, user_message: str, client, model: str, task_type: TaskType, provider) -> str:
         """
         Execute in lite mode: single LLM call without tools.
@@ -289,17 +354,23 @@ class UnifiedAgent:
         messages = self._build_messages_optimized(user_message, include_tools=False)
         
         try:
-            response = client.chat.completions.create(
-                model=model,
-                messages=messages,
-                tools=None,  # Explicitly no tools
-                temperature=Config.TEMPERATURE
-            )
-            
-            if response is None:
-                raise Exception("API returned None response")
-            
-            final_response = response.choices[0].message.content
+            if Config.ENABLE_STREAMING:
+                print("\n🤖 Assistant:")
+                final_response, _ = self._stream_response(
+                    client, model, messages, tools=None
+                )
+            else:
+                response = client.chat.completions.create(
+                    model=model,
+                    messages=messages,
+                    tools=None,  # Explicitly no tools
+                    temperature=Config.TEMPERATURE
+                )
+                
+                if response is None:
+                    raise Exception("API returned None response")
+                
+                final_response = response.choices[0].message.content
             
             # Log usage
             tokens_used = self._estimate_tokens(messages, final_response)
@@ -358,18 +429,51 @@ class UnifiedAgent:
             print(f"[Iteration {iteration}/{max_iterations}]")
             
             try:
-                response = client.chat.completions.create(
-                    model=model,
-                    messages=messages,
-                    tools=self._get_tools_for_request(query_type) if self._should_include_tools(query_type) else None,
-                    tool_choice="auto" if self._should_include_tools(query_type) else None,
-                    temperature=Config.TEMPERATURE
-                )
+                should_use_tools = self._should_include_tools(query_type)
+                tools = self._get_tools_for_request(query_type) if should_use_tools else None
                 
-                if response is None:
-                    raise Exception("API returned None response - possible rate limit or model issue")
-                
-                message = response.choices[0].message
+                if Config.ENABLE_STREAMING:
+                    print(f"\n🤖 Assistant (iteration {iteration}):")
+                    content, tool_calls_data = self._stream_response(
+                        client, model, messages, 
+                        tools=tools,
+                        tool_choice="auto" if should_use_tools else None
+                    )
+                    
+                    # Create message object from streamed data
+                    class StreamedMessage:
+                        def __init__(self, content, tool_calls):
+                            self.content = content
+                            self.tool_calls = []
+                            
+                            if tool_calls:
+                                for tc in tool_calls:
+                                    class ToolCall:
+                                        def __init__(self, data):
+                                            self.id = data["id"]
+                                            self.type = data["type"]
+                                            class Function:
+                                                def __init__(self, func_data):
+                                                    self.name = func_data["name"]
+                                                    self.arguments = func_data["arguments"]
+                                            self.function = Function(data["function"])
+                                    
+                                    self.tool_calls.append(ToolCall(tc))
+                    
+                    message = StreamedMessage(content, tool_calls_data)
+                else:
+                    response = client.chat.completions.create(
+                        model=model,
+                        messages=messages,
+                        tools=tools,
+                        tool_choice="auto" if should_use_tools else None,
+                        temperature=Config.TEMPERATURE
+                    )
+                    
+                    if response is None:
+                        raise Exception("API returned None response - possible rate limit or model issue")
+                    
+                    message = response.choices[0].message
                 
                 # Check if agent wants to use tools
                 if message.tool_calls and self._should_include_tools(query_type):
@@ -407,14 +511,12 @@ class UnifiedAgent:
                                 **tool_args
                             )
                         except FatalError as e:
-                            import json
                             tool_result = json.dumps({
                                 "success": False,
                                 "error": f"Fatal error: {e}",
                                 "suggestion": "This error cannot be retried. Check tool arguments."
                             })
                         except Exception as e:
-                            import json
                             tool_result = json.dumps({
                                 "success": False,
                                 "error": f"Unexpected error: {e}"

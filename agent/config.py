@@ -76,6 +76,9 @@ class Config:
     ENABLE_LAZY_TOOLS = os.getenv("ENABLE_LAZY_TOOLS", "true").lower() == "true"
     CACHE_TTL_HOURS = int(os.getenv("CACHE_TTL_HOURS", 24))
     
+    # Streaming configuration
+    ENABLE_STREAMING = os.getenv("ENABLE_STREAMING", "true").lower() == "true"
+    
     @classmethod
     def get_model_for_task(cls, task_type: TaskType) -> str:
         """Select appropriate model based on task type and mode"""
