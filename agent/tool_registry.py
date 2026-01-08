@@ -128,8 +128,8 @@ class ToolRegistry:
             if hasattr(module, 'TOOL_SCHEMAS'):
                 # Create a wrapper that adds the operation parameter
                 def make_dispatcher(op_name):
-                    def dispatcher(**kwargs):
-                        return execute_func(op_name, **kwargs)
+                    def dispatcher(*args, **kwargs):
+                        return execute_func(op_name, *args, **kwargs)
                     return dispatcher
                 execute_func = make_dispatcher(tool_name)
         else:
@@ -230,8 +230,8 @@ class ToolRegistry:
                     
                     # Create executor closure
                     def make_executor(mname):
-                        def executor(**args):
-                            return MCPToolAdapter.execute_stub(mname, args, self.warehouse)
+                        def executor(**kwargs):
+                            return MCPToolAdapter.execute_stub(mname, kwargs, self.warehouse)
                         return executor
                     
                     # Register in tools dict

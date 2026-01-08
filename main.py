@@ -363,20 +363,28 @@ def interactive_mode(agent: UnifiedAgent, args: argparse.Namespace, config: dict
     # Load command history
     load_history()
     
-    # Show welcome banner
-    console.print(Panel.fit(
-        "[bold green]Daagent - AI Agent[/bold green]\n"
-        f"Mode: {'DEV' if Config.DEV_MODE else 'PROD'}\n"
-        f"Tools: {len(agent.available_tools)} available\n"
-        "Commands: /help, /reset, /exit, /list-tools, /sessions",
-        border_style="green"
-    ))
+    # Check if input is from a pipe (non-interactive)
+    is_piped_input = not sys.stdin.isatty()
+    
+    # Show welcome banner (only for interactive sessions)
+    if not is_piped_input:
+        console.print(Panel.fit(
+            "[bold green]Daagent - AI Agent[/bold green]\n"
+            f"Mode: {'DEV' if Config.DEV_MODE else 'PROD'}\n"
+            f"Tools: {len(agent.available_tools)} available\n"
+            "Commands: /help, /reset, /exit, /list-tools, /sessions",
+            border_style="green"
+        ))
 
     try:
         while True:
             try:
                 # Get user input (handle multi-line)
                 user_input = get_multiline_input()
+                
+                # If piped input and we got EOF, exit
+                if is_piped_input and user_input == "":
+                    break
                 
                 # Expand shortcuts
                 user_input = expand_shortcuts(user_input)
@@ -401,16 +409,24 @@ def interactive_mode(agent: UnifiedAgent, args: argparse.Namespace, config: dict
                 else:
                     # Error already displayed by safe_agent_run
                     pass
+                
+                # If piped input, exit after first response
+                if is_piped_input:
+                    break
 
             except KeyboardInterrupt:
-                console.print("\n[yellow]Use /exit to quit properly[/yellow]")
+                if not is_piped_input:
+                    console.print("\n[yellow]Use /exit to quit properly[/yellow]")
+                break
             except Exception as e:
                 if args.debug:
                     raise
                 console.print(f"[red]Error:[/red] {e}")
+                if is_piped_input:
+                    break
     finally:
-        # Save command history on exit
-        if config["cli"]["auto_save_history"]:
+        # Save command history on exit (only for interactive sessions)
+        if not is_piped_input and config["cli"]["auto_save_history"]:
             save_history()
 
 
@@ -420,8 +436,23 @@ def get_multiline_input() -> str:
     Press Enter twice to submit (or immediately for commands).
     
     Returns:
-        The complete user input
+        The complete user input, or empty string on EOF for piped input
     """
+    # Check if input is from a pipe
+    is_piped = not sys.stdin.isatty()
+    
+    if is_piped:
+        # For piped input, read all available input at once
+        try:
+            lines = sys.stdin.readlines()
+            if not lines:
+                return ""
+            # Remove trailing newlines and join
+            return "".join(line.rstrip('\r\n') + '\n' for line in lines).rstrip('\n')
+        except:
+            return ""
+    
+    # Interactive mode - show prompt and handle multi-line
     console.print("[bold cyan]You:[/bold cyan] ", end="")
     lines = []
     consecutive_empty = 0

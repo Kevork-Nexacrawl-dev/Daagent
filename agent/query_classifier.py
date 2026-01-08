@@ -49,6 +49,11 @@ class QueryClassifier:
         r"when (is|are|do)",
         r"where (is|are)",
         r"who (is|are)",
+        # Simple conversational patterns
+        r"^(hi|hello|hey|good (morning|afternoon|evening))$",
+        r"^(thanks?|thank you)$",
+        r"^(yes|no|okay|ok)$",
+        r"^(print|show|display)\s+\w+$",  # Simple print/show requests
     ]
 
     # Action patterns (require tools)

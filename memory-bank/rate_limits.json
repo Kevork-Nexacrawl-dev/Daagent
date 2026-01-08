@@ -1,19 +1,19 @@
 {
-  "timestamp": "2026-01-07T20:18:42.564123",
+  "timestamp": "2026-01-07T22:09:50.907359",
   "providers": {
     "openrouter": {
       "requests_this_minute": 1,
-      "requests_this_hour": 1,
-      "last_reset_minute": "2026-01-07T20:17:32.547006",
-      "last_reset_hour": "2026-01-07T20:17:32.547006"
+      "requests_this_hour": 13,
+      "last_reset_minute": "2026-01-07T22:09:26.869197",
+      "last_reset_hour": "2026-01-07T21:43:35.091045"
     }
   },
   "usage_tracker": {
-    "openrouter": 17
+    "openrouter": 30
   },
   "session_stats": {
-    "total_requests": 17,
+    "total_requests": 30,
     "total_cost": 0.0,
-    "total_saved": 0.029432000000000003
+    "total_saved": 0.047533000000000006
   }
 }

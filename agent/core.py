@@ -36,17 +36,26 @@ class UnifiedAgent:
         
         self.conversation_history = []  # Conversation history for context
         
-        # Initialize tool registry for auto-discovery
+        # Initialize tool registry for auto-discovery (lazy loading)
         self.tool_registry = ToolRegistry()
         self.available_tools = []
+        self._tools_loaded = False  # Flag to track if tools are loaded
         
-        self._register_tools()
+        # Only load tools if not using lazy loading
+        if not Config.ENABLE_LAZY_TOOLS:
+            self._ensure_tools_loaded()
         
         print("🤖 Unified Agent initialized")
         print(f"   Mode: {'DEV' if Config.DEV_MODE else 'PROD'}")
-        print(f"   Tools: {len(self.available_tools)} available")
+        print(f"   Tools: {'Not loaded yet (lazy)' if Config.ENABLE_LAZY_TOOLS else f'{len(self.available_tools)} available'}")
         print(f"   Providers: {len(self.provider_manager.providers)} loaded")
         print(f"   Optimizations: {'ENABLED' if Config.ENABLE_QUERY_CLASSIFICATION else 'DISABLED'}")
+    
+    def _ensure_tools_loaded(self):
+        """Ensure tools are loaded (lazy loading)"""
+        if not self._tools_loaded:
+            self._register_tools()
+            self._tools_loaded = True
     
     def _register_tools(self):
         """Register all available tools using auto-discovery"""
@@ -58,7 +67,7 @@ class UnifiedAgent:
             self.available_tools.append(tool_info['schema'])
             print(f"   ✓ Registered tool: {tool_name}")
         
-        # Discover MCP warehouse tools
+        # Discover MCP warehouse tools (only if MCP is enabled)
         if Config.ENABLE_MCP and Config.MCP_WAREHOUSE_PATH:
             self.tool_registry.discover_mcp_warehouse(Config.MCP_WAREHOUSE_PATH)
         
@@ -111,10 +120,11 @@ class UnifiedAgent:
         
         # Step 6: Execute based on query type
         if query_type == QueryType.INFORMATIONAL and Config.ENABLE_LAZY_TOOLS:
-            # Lite mode: Single LLM call, no tools
+            # Lite mode: Single LLM call, no tools (skip tool loading)
             response = self._execute_lite_mode(user_message, client, model, task_type, provider)
         else:
-            # Full ReAct mode: Tool calling loop
+            # Full ReAct mode: Ensure tools are loaded, then use tool calling loop
+            self._ensure_tools_loaded()
             response = self._execute_react_mode(user_message, client, model, task_type, provider, query_type)
         
         # Step 7: Cache response if applicable

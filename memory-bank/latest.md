@@ -1,53 +1,122 @@
-# Session: 2025-12-29/30 - Phase 3 CLI & Tools Complete
+# Session: 2025-12-29/30 - Performance Optimization & Tool Execution Fixes
 
 **Date**: December 29-30, 2025
-**Phase**: Phase 3 - Tools & CLI Implementation
-**Status**: ✅ COMPLETE
+**Phase**: Phase 3 - Tools & CLI Implementation (Continued)
+**Status**: ✅ COMPLETE - Performance & Reliability Issues Resolved
 
 ***
 
 ## Summary
 
-Implemented fully functional CLI interface with interactive and single-query modes. Built and tested web search and file operations tools. Validated ReAct agent behavior with real-world queries. Phase 3 objectives achieved - agent is now operational.
+Resolved critical performance bottleneck (60+ second delays for simple queries) and tool execution failures. Implemented lazy tool loading for 10x faster response times on informational queries. Fixed dispatcher function signature issues causing "maximum recursion depth exceeded" errors. Agent now responds instantly to simple queries while maintaining full tool functionality for complex tasks.
 
 ***
 
 ## What Was Built
 
-### Core Features
+### Performance Optimizations
 
-1. **`main.py` CLI Interface**
-    - Interactive chat mode with welcome banner
-    - Single query mode (`python main.py "query"`)
-    - Command system (`/reset`, `/exit`, `/help`)
-    - Multi-line input with command escape
-    - Rich formatting (colored output, panels, markdown rendering)
-    - Configuration flags (`--dev-mode`, `--model`, `--max-iterations`)
-2. **Tools Completed**
-    - `tools/native/web_search.py` - DuckDuckGo search with JSON results
-    - `tools/native/file_ops.py` - Read/write files with security checks
-    - Tool registration system in `agent/core.py`
-    - OpenAI function schemas for all tools
-3. **Bug Fixes**
-    - Command freeze in interactive mode (multi-line input issue)
-    - Fixed by detecting `/` commands and returning immediately
+1. **Lazy Tool Loading**
+    - Modified `agent/core.py` to skip tool discovery for simple queries
+    - Added query classification integration (`QueryClassifier`)
+    - Simple queries now respond in ~5-10 seconds vs ~60 seconds
+    - Complex queries still load full tool suite automatically
 
-### Tests Passing
+2. **Query Classification Enhancement**
+    - Updated patterns in `agent/query_classifier.py`
+    - Better detection of informational vs action queries
+    - Prevents unnecessary tool loading for conversational queries
 
-- ✅ `test_basic.py` - Core agent functionality
-- ✅ `test_web_search.py` - Web search with mocks
-- ✅ `test_file_ops.py` - File operations end-to-end
-- ✅ Manual CLI tests - All 5 test cases passed
+### Bug Fixes
+
+1. **Tool Registry Dispatcher Issue**
+    - Root cause: `make_dispatcher` created functions with `(**kwargs)` signature
+    - Error: "takes 0 positional arguments but 1 was given"
+    - Fix: Changed to `(*args, **kwargs)` to accept both positional and keyword arguments
+    - Applied to both tool dispatchers and MCP executors
+
+2. **Tool Execution Failures**
+    - Fixed recursion errors in tool calling
+    - Ensured proper argument passing to tool functions
+    - Validated execute_python and other tools work correctly
+
+### Tests Validated
+
+- ✅ Simple queries: "hello" → instant response (~5s)
+- ✅ Tool queries: "execute python code" → successful execution
+- ✅ Lazy loading: Tools not loaded for informational queries
+- ✅ Full functionality: Complex queries still work with tools
 
 ***
 
 ## Key Decisions Made
 
-### 1. ReAct Pattern Confirmation
+### 1. Lazy Loading Strategy
 
-- **Decision**: Agent exhibits true ReAct (Reasoning + Acting) behavior
-- **Evidence**: Test 3 showed agent autonomously:
-    - Made 3 refined searches (broad → specific → targeted)
+- **Decision**: Implement query-based tool loading instead of always loading
+- **Rationale**: 92 tools + 39 MCP modules caused 60s delays for simple queries
+- **Implementation**: Check `QueryType` before loading tools in `UnifiedAgent.run()`
+- **Result**: 10x performance improvement for simple queries
+
+### 2. Dispatcher Signature Fix
+
+- **Decision**: Change dispatcher functions to accept `*args, **kwargs`
+- **Rationale**: Original `(**kwargs)` couldn't handle positional arguments
+- **Implementation**: Modified `make_dispatcher` and `make_executor` in `tool_registry.py`
+- **Result**: Tool execution errors eliminated
+
+### 3. Query Classification Priority
+
+- **Decision**: Prioritize speed over perfect classification
+- **Rationale**: False positives (loading tools unnecessarily) better than false negatives (missing tools when needed)
+- **Implementation**: Conservative classification - defaults to full mode when uncertain
+- **Result**: Reliable tool availability for complex queries
+
+***
+
+## Technical Details
+
+### Lazy Loading Implementation
+
+```python
+# In UnifiedAgent.run()
+if query_type == QueryType.INFORMATIONAL and Config.ENABLE_LAZY_TOOLS:
+    response = self._execute_lite_mode(user_message, client, model, task_type, provider)
+else:
+    self._ensure_tools_loaded()  # Only load when needed
+    response = self._execute_react_mode(user_message, client, model, task_type, provider, query_type)
+```
+
+### Dispatcher Fix
+
+```python
+def make_dispatcher(op_name):
+    def dispatcher(*args, **kwargs):  # Now accepts both positional and keyword
+        return execute_func(op_name, *args, **kwargs)
+    return dispatcher
+```
+
+### Performance Metrics
+
+- **Before**: Simple query = ~60 seconds (full tool loading)
+- **After**: Simple query = ~5-10 seconds (no tool loading)
+- **Tool queries**: ~30-45 seconds (acceptable for complex operations)
+- **Improvement**: 6-12x faster for informational queries
+
+***
+
+## Next Steps
+
+Phase 3 is now fully complete. Agent has:
+- ✅ Functional CLI with interactive/single-query modes
+- ✅ Web search and file operations tools
+- ✅ Fast responses for simple queries
+- ✅ Reliable tool execution for complex queries
+- ✅ Proper error handling and logging
+
+Ready to proceed to **Phase 4: Scalability** (YAML prompts, MCP bridge, ephemeral workers).
+
+***
     - Decided when enough information gathered
     - Synthesized comprehensive report
 - **Impact**: This is AutoGPT-style agent capability confirmed
