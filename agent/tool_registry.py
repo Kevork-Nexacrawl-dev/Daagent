@@ -10,6 +10,10 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 
+from agent.errors import classify_error, FatalError, RetryableError, AllFallbacksFailed
+from agent.retry_manager import RetryManager
+from agent.fallback_manager import FallbackManager
+
 logger = logging.getLogger(__name__)
 
 
@@ -33,6 +37,10 @@ class ToolRegistry:
         self.tools_dir = Path(tools_dir)
         self.tools: Dict[str, Dict[str, Any]] = {}
         self._discovered = False
+        
+        # NEW: Add error handling components
+        self.retry_manager = RetryManager(max_retries=3)
+        self.fallback_manager = FallbackManager()
     
     def discover_tools(self) -> Dict[str, Dict[str, Any]]:
         """
@@ -252,3 +260,49 @@ class ToolRegistry:
             print("   Native tools still available")
             import traceback
             traceback.print_exc()
+    
+    def execute_tool_safe(self, tool_name: str, use_fallbacks=True, **kwargs) -> str:
+        """
+        Execute tool with retry logic and fallbacks.
+        
+        Args:
+            tool_name: Tool name
+            use_fallbacks: Whether to use fallback strategies
+            **kwargs: Tool arguments
+            
+        Returns:
+            Tool result (JSON string)
+        """
+        import json
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        try:
+            # Try with retries first
+            result = self.retry_manager.execute_with_retry(
+                self.execute_tool, tool_name, **kwargs
+            )
+            return result
+            
+        except FatalError:
+            # Fatal errors don't get fallbacks
+            raise
+            
+        except (RetryableError, Exception) as e:
+            if not use_fallbacks:
+                raise
+            
+            # Try fallback strategies
+            logger.info(f"Primary tool failed, trying fallbacks...")
+            try:
+                result = self.fallback_manager.execute_with_fallbacks(
+                    self, tool_name, kwargs
+                )
+                return result
+            except AllFallbacksFailed as fallback_error:
+                # Return user-friendly error message
+                return json.dumps({
+                    "success": False,
+                    "error": f"All strategies failed for {tool_name}",
+                    "attempts": fallback_error.errors
+                })

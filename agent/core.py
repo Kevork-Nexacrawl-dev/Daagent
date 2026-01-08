@@ -399,7 +399,26 @@ class UnifiedAgent:
                         
                         print(f"   → {tool_name}({tool_args})")
                         
-                        tool_result = self._execute_tool(tool_name, tool_args)
+                        # Execute tool with retry logic and fallbacks
+                        try:
+                            tool_result = self.tool_registry.execute_tool_safe(
+                                tool_name, 
+                                use_fallbacks=True, 
+                                **tool_args
+                            )
+                        except FatalError as e:
+                            import json
+                            tool_result = json.dumps({
+                                "success": False,
+                                "error": f"Fatal error: {e}",
+                                "suggestion": "This error cannot be retried. Check tool arguments."
+                            })
+                        except Exception as e:
+                            import json
+                            tool_result = json.dumps({
+                                "success": False,
+                                "error": f"Unexpected error: {e}"
+                            })
                         
                         # Add tool result to conversation
                         messages.append({
