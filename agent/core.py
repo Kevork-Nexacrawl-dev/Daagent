@@ -16,6 +16,10 @@ from agent.tool_registry import ToolRegistry
 from agent.provider_manager import ProviderManager
 from agent.query_classifier import QueryClassifier, QueryType
 from agent.response_cache import ResponseCache
+from agent.checkpoint import TaskCheckpoint
+from agent.partial_result_handler import PartialResultHandler
+from agent.errors import PartialSuccess
+import hashlib
 
 
 class UnifiedAgent:
@@ -424,6 +428,11 @@ class UnifiedAgent:
         iteration = 0
         max_iterations = Config.MAX_ITERATIONS
         
+        # Initialize checkpoint for partial success tracking
+        task_id = hashlib.md5(user_message.encode()).hexdigest()[:12]
+        checkpoint = TaskCheckpoint(task_id)
+        print(f"📍 Checkpoint ID: {task_id}")
+        
         while iteration < max_iterations:
             iteration += 1
             print(f"[Iteration {iteration}/{max_iterations}]")
@@ -510,16 +519,79 @@ class UnifiedAgent:
                                 use_fallbacks=True, 
                                 **tool_args
                             )
-                        except FatalError as e:
+                            
+                            # Track successful tool execution
+                            tool_result_parsed = json.loads(tool_result) if isinstance(tool_result, str) else tool_result
+                            
+                            # Check if tool result indicates failure
+                            is_tool_error = (
+                                isinstance(tool_result_parsed, dict) and
+                                tool_result_parsed.get("status") == "error"
+                            )
+                            
+                            if is_tool_error:
+                                # Track as failed step
+                                checkpoint.add_step(
+                                    step_name=f"Tool: {tool_name}",
+                                    result=tool_result_parsed,
+                                    success=False
+                                )
+                                
+                                # Return partial results if we have any completed steps
+                                if checkpoint.has_completed_steps():
+                                    checkpoint.save_to_file()
+                                    partial_response = PartialResultHandler.format_response(
+                                        checkpoint,
+                                        final_error=f"Tool '{tool_name}' returned error: {tool_result_parsed.get('message', 'Unknown error')}"
+                                    )
+                                    
+                                    print("\n⚠️ Returning partial results\n")
+                                    print(self.provider_manager.get_status_report())
+                                    self.provider_manager.save_state()
+                                    
+                                    return partial_response
+                                
+                                # No completed steps - continue with error result
+                                checkpoint.add_step(
+                                    step_name=f"Tool: {tool_name}",
+                                    result=tool_result_parsed,
+                                    success=False
+                                )
+                            else:
+                                # Track as successful step
+                                checkpoint.add_step(
+                                    step_name=f"Tool: {tool_name}",
+                                    result=tool_result_parsed,
+                                    success=True
+                                )
+                            
+                        except (FatalError, Exception) as e:
+                            # Track failed tool execution
+                            checkpoint.add_step(
+                                step_name=f"Tool: {tool_name}",
+                                result=str(e),
+                                success=False
+                            )
+                            
+                            # Return partial results if we have any completed steps
+                            if checkpoint.has_completed_steps():
+                                checkpoint.save_to_file()
+                                partial_response = PartialResultHandler.format_response(
+                                    checkpoint,
+                                    final_error=f"Tool '{tool_name}' failed: {e}"
+                                )
+                                
+                                print("\n⚠️ Returning partial results\n")
+                                print(self.provider_manager.get_status_report())
+                                self.provider_manager.save_state()
+                                
+                                return partial_response
+                            
+                            # No completed steps - return normal error
                             tool_result = json.dumps({
                                 "success": False,
                                 "error": f"Fatal error: {e}",
                                 "suggestion": "This error cannot be retried. Check tool arguments."
-                            })
-                        except Exception as e:
-                            tool_result = json.dumps({
-                                "success": False,
-                                "error": f"Unexpected error: {e}"
                             })
                         
                         # Add tool result to conversation
@@ -546,6 +618,9 @@ class UnifiedAgent:
                 ])
                 
                 print(f"\n✅ Task completed in {iteration} iteration(s)\n")
+                
+                # Save checkpoint for successful completion
+                checkpoint.save_to_file()
                 
                 # Show cost report
                 print(self.provider_manager.get_status_report())

@@ -1,0 +1,22 @@
+{
+  "task_id": "c5c9b0ae235e",
+  "completed_steps": [
+    "Tool: read_file",
+    "Tool: read_file"
+  ],
+  "failed_steps": [],
+  "total_steps": 2,
+  "success_rate": 1.0,
+  "start_time": "2026-01-07T22:46:49.246048",
+  "last_update": "2026-01-07T22:47:54.221051",
+  "results": {
+    "Tool: read_file": {
+      "status": "error",
+      "message": "Access denied: File outside workspace",
+      "file_path": "/fake/path.txt",
+      "content": "",
+      "lines_read": 0,
+      "total_lines": 0
+    }
+  }
+}

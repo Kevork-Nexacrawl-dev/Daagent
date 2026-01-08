@@ -13,8 +13,11 @@ def test_tool_registry_discovery():
     # Discover tools
     tools = registry.discover_tools()
     
-    # Should find our 3 tools
-    assert len(tools) == 3
+    # Should find our native tools (53+ as of current implementation)
+    assert len(tools) >= 50  # Allow for future tool additions
+    assert "read_file" in tools
+    assert "write_file" in tools
+    assert "web_search" in tools
     assert 'web_search' in tools
     assert 'read_file' in tools
     assert 'write_file' in tools
@@ -49,13 +52,15 @@ def test_tool_registry_schemas():
     registry.discover_tools()
     
     schemas = registry.get_all_schemas()
-    assert len(schemas) == 3
+    assert len(schemas) >= 50  # Allow for future tool additions
     
-    # Check web_search schema
-    web_search_schema = registry.get_tool_schema('web_search')
-    assert web_search_schema is not None
-    assert web_search_schema['function']['name'] == 'web_search'
-    assert 'query' in web_search_schema['function']['parameters']['properties']
+    # Check that schemas have required OpenAI format
+    for schema in schemas:
+        assert "type" in schema
+        assert schema["type"] == "function"
+        assert "function" in schema
+        assert "name" in schema["function"]
+        assert "description" in schema["function"]
 
 
 def test_tool_registry_list():
@@ -64,7 +69,10 @@ def test_tool_registry_list():
     registry.discover_tools()
     
     tool_names = registry.list_tools()
-    assert len(tool_names) == 3
+    assert len(tool_names) >= 50  # Allow for future tool additions
+    assert "read_file" in tool_names
+    assert "write_file" in tool_names
+    assert "web_search" in tool_names
     assert 'web_search' in tool_names
     assert 'read_file' in tool_names
     assert 'write_file' in tool_names
