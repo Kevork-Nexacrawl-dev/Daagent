@@ -10,6 +10,9 @@ pydantic>=2.10.0
 rich>=13.9.4
 PyYAML>=6.0.0
 
+# CLI enhancements
+pyreadline3>=3.4.1; platform_system=="Windows"  # Command history on Windows
+
 # Safe Python execution
 RestrictedPython>=7.0
 

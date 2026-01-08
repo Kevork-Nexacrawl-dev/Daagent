@@ -1,0 +1,12 @@
+cli:
+  color_scheme: "default"  # or "dark", "light"
+  show_reasoning: true     # Show agent's thinking process
+  auto_save_history: true
+  max_history_lines: 1000
+  default_session_id: "default"
+  streaming_enabled: false  # Enable when agent supports it
+
+models:
+  free_model: "nex-agi/deepseek-v3.1-nex-n1:free"
+  paid_model: "x-ai/grok-4-fast"
+  switch_threshold: "complex"  # or "simple", "medium"
