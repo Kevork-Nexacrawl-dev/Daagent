@@ -7,6 +7,11 @@ import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Send, Bot, User, Wrench, Loader2 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
+import { CodeBlock } from '@/components/code-block';
+import { Toaster } from 'react-hot-toast';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -46,6 +51,10 @@ export default function ChatPage() {
     setCurrentResponse('');
     setCurrentToolCalls([]);
 
+    // Collect streaming data in local variables
+    let streamedResponse = '';
+    let streamedToolCalls: ToolCall[] = [];
+
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
@@ -76,20 +85,20 @@ export default function ChatPage() {
               const event = JSON.parse(jsonStr);
 
               if (event.type === 'text') {
-                setCurrentResponse((prev) => prev + event.content);
+                streamedResponse += event.content;
+                setCurrentResponse(streamedResponse);
               } else if (event.type === 'tool') {
-                setCurrentToolCalls((prev) => [
-                  ...prev,
-                  { name: event.name, args: event.args, result: event.result },
-                ]);
+                const newTool = { name: event.name, args: event.args, result: event.result };
+                streamedToolCalls = [...streamedToolCalls, newTool];
+                setCurrentToolCalls(streamedToolCalls);
               } else if (event.type === 'done') {
-                // Finalize assistant message
+                // Finalize with local variables (no closure issues)
                 setMessages((prev) => [
                   ...prev,
                   {
                     role: 'assistant',
-                    content: currentResponse,
-                    toolCalls: currentToolCalls.length > 0 ? currentToolCalls : undefined,
+                    content: streamedResponse,
+                    toolCalls: streamedToolCalls.length > 0 ? streamedToolCalls : undefined,
                   },
                 ]);
                 setCurrentResponse('');
@@ -163,7 +172,90 @@ export default function ChatPage() {
                     <Bot className="w-5 h-5" />
                   </div>
                   <div className="flex-1 space-y-3">
-                    <p className="text-white whitespace-pre-wrap">{message.content}</p>
+                    {/* REPLACED: Use ReactMarkdown instead of plain text */}
+                    <div className="prose prose-invert max-w-none">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        rehypePlugins={[rehypeRaw]}
+                        components={{
+                          code({ node, className, children, ...props }: any) {
+                            const match = /language-(\w+)/.exec(className || '');
+                            const language = match ? match[1] : '';
+                            const isInline = !className?.includes('language-');
+
+                            return isInline ? (
+                              <code className="px-1.5 py-0.5 bg-gray-800 rounded text-sm font-mono text-blue-400" {...props}>
+                                {children}
+                              </code>
+                            ) : (
+                              <CodeBlock language={language} className={className}>
+                                {String(children).replace(/\n$/, '')}
+                              </CodeBlock>
+                            );
+                          },
+                          a({ href, children }) {
+                            return (
+                              <a
+                                href={href}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-400 hover:text-blue-300 underline"
+                              >
+                                {children}
+                              </a>
+                            );
+                          },
+                          p({ children }) {
+                            return <p className="text-white mb-4 last:mb-0">{children}</p>;
+                          },
+                          ul({ children }) {
+                            return <ul className="list-disc list-inside text-white mb-4 space-y-1">{children}</ul>;
+                          },
+                          ol({ children }) {
+                            return <ol className="list-decimal list-inside text-white mb-4 space-y-1">{children}</ol>;
+                          },
+                          h1({ children }) {
+                            return <h1 className="text-2xl font-bold text-white mb-4 mt-6">{children}</h1>;
+                          },
+                          h2({ children }) {
+                            return <h2 className="text-xl font-bold text-white mb-3 mt-5">{children}</h2>;
+                          },
+                          h3({ children }) {
+                            return <h3 className="text-lg font-bold text-white mb-2 mt-4">{children}</h3>;
+                          },
+                          blockquote({ children }) {
+                            return (
+                              <blockquote className="border-l-4 border-gray-600 pl-4 italic text-gray-300 my-4">
+                                {children}
+                              </blockquote>
+                            );
+                          },
+                          table({ children }) {
+                            return (
+                              <div className="overflow-x-auto my-4">
+                                <table className="min-w-full border border-gray-700">{children}</table>
+                              </div>
+                            );
+                          },
+                          th({ children }) {
+                            return (
+                              <th className="border border-gray-700 px-4 py-2 bg-gray-800 text-left text-white font-semibold">
+                                {children}
+                              </th>
+                            );
+                          },
+                          td({ children }) {
+                            return (
+                              <td className="border border-gray-700 px-4 py-2 text-gray-300">
+                                {children}
+                              </td>
+                            );
+                          },
+                        }}
+                      >
+                        {message.content}
+                      </ReactMarkdown>
+                    </div>
                     {message.toolCalls && message.toolCalls.length > 0 && (
                       <div className="space-y-2">
                         {message.toolCalls.map((tool, toolIdx) => (
@@ -202,7 +294,31 @@ export default function ChatPage() {
                 <Bot className="w-5 h-5" />
               </div>
               <div className="flex-1">
-                <p className="text-white whitespace-pre-wrap">{currentResponse}</p>
+                {/* REPLACED: Use markdown for streaming too */}
+                <div className="prose prose-invert max-w-none">
+                  <ReactMarkdown
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      code({ node, className, children, ...props }: any) {
+                        const isInline = !className?.includes('language-');
+                        return isInline ? (
+                          <code className="px-1.5 py-0.5 bg-gray-800 rounded text-sm font-mono text-blue-400" {...props}>
+                            {children}
+                          </code>
+                        ) : (
+                          <pre className="bg-gray-950 p-4 rounded-lg overflow-x-auto">
+                            <code className="text-sm font-mono text-gray-100">{children}</code>
+                          </pre>
+                        );
+                      },
+                      p({ children }) {
+                        return <p className="text-white mb-2 last:mb-0">{children}</p>;
+                      },
+                    }}
+                  >
+                    {currentResponse}
+                  </ReactMarkdown>
+                </div>
                 <span className="inline-block w-1 h-4 bg-white animate-pulse ml-1" />
               </div>
             </div>
@@ -248,6 +364,9 @@ export default function ChatPage() {
           </p>
         </div>
       </div>
+
+      {/* Toast notifications */}
+      <Toaster position="top-right" />
     </div>
   );
 }

@@ -123,3 +123,36 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* Markdown prose styles */
+.prose {
+  @apply text-gray-100;
+}
+
+.prose code {
+  @apply text-blue-400 bg-gray-800 px-1 py-0.5 rounded text-sm;
+}
+
+.prose pre {
+  @apply bg-gray-950 p-4 rounded-lg overflow-x-auto;
+}
+
+.prose pre code {
+  @apply bg-transparent p-0 text-gray-100;
+}
+
+.prose a {
+  @apply text-blue-400 hover:text-blue-300 underline;
+}
+
+.prose strong {
+  @apply text-white font-bold;
+}
+
+.prose em {
+  @apply text-gray-300 italic;
+}
+
+.prose hr {
+  @apply border-gray-700 my-6;
+}
