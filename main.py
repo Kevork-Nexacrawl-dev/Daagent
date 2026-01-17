@@ -205,10 +205,24 @@ SHORTCUTS = {
 def main():
     # Load configuration
     config = load_config()
-    
+
     # Check dependencies
     check_dependencies()
-    
+
+    # Handle module execution (for web API)
+    if len(sys.argv) == 2 and not sys.argv[1].startswith('-'):
+        # Called as: python -m agent "query"
+        user_query = sys.argv[1]
+
+        # Initialize agent with minimal output
+        agent = UnifiedAgent()
+
+        # Run query and exit
+        response = safe_agent_run(agent, user_query)
+        if response:
+            print(response)  # Plain text for API
+        sys.exit(0)
+
     parser = argparse.ArgumentParser(
         description="Daagent - General-purpose AI Agent",
         formatter_class=argparse.RawDescriptionHelpFormatter,

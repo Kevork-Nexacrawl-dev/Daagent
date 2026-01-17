@@ -278,24 +278,24 @@ class UnifiedAgent:
         # Rough conversion: ~4 chars per token
         return total_chars // 4
     
-    def _stream_response(self, client, model: str, messages: List[Dict], 
+    def _stream_response(self, client, model: str, messages: List[Dict],
                         tools=None, tool_choice=None) -> tuple[str, List]:
         """
-        Stream LLM response with real-time display.
-        
+        Stream LLM response with real-time display and JSON events for web UI.
+
         Args:
             client: LLM client
             model: Model name
             messages: Message history
             tools: Tool schemas (optional)
             tool_choice: Tool choice mode (optional)
-            
+
         Returns:
             Tuple of (complete_response, tool_calls_list)
         """
         accumulated_content = ""
         tool_calls_accumulator = []
-        
+
         # Create streaming request
         stream = client.chat.completions.create(
             model=model,
@@ -305,18 +305,22 @@ class UnifiedAgent:
             temperature=Config.TEMPERATURE,
             stream=True  # Enable streaming
         )
-        
+
         # Display streamed response in real-time
         console = Console()
         with Live("", refresh_per_second=20, console=console) as live:
             for chunk in stream:
                 delta = chunk.choices[0].delta
-                
+
                 # Accumulate content
                 if delta.content:
                     accumulated_content += delta.content
                     live.update(Markdown(accumulated_content))
-                
+
+                    # Output JSON event for web UI
+                    event = {"type": "text", "content": delta.content}
+                    print(json.dumps(event), flush=True)
+
                 # Collect tool calls
                 if delta.tool_calls:
                     for tc in delta.tool_calls:
@@ -334,9 +338,9 @@ class UnifiedAgent:
                             # Append to existing tool call arguments
                             if tc.function.arguments:
                                 tool_calls_accumulator[tc.index]["function"]["arguments"] += tc.function.arguments
-        
+
         print()  # Newline after streaming completes
-        
+
         return accumulated_content, tool_calls_accumulator
     
     def _execute_lite_mode(self, user_message: str, client, model: str, task_type: TaskType, provider) -> str:
@@ -564,7 +568,16 @@ class UnifiedAgent:
                                     result=tool_result_parsed,
                                     success=True
                                 )
-                            
+
+                            # Output tool call event for web UI
+                            tool_event = {
+                                "type": "tool",
+                                "name": tool_name,
+                                "args": tool_args,
+                                "result": str(tool_result)[:200]  # Truncate for display
+                            }
+                            print(json.dumps(tool_event), flush=True)
+
                         except (FatalError, Exception) as e:
                             # Track failed tool execution
                             checkpoint.add_step(
@@ -572,7 +585,7 @@ class UnifiedAgent:
                                 result=str(e),
                                 success=False
                             )
-                            
+
                             # Return partial results if we have any completed steps
                             if checkpoint.has_completed_steps():
                                 checkpoint.save_to_file()
@@ -580,19 +593,28 @@ class UnifiedAgent:
                                     checkpoint,
                                     final_error=f"Tool '{tool_name}' failed: {e}"
                                 )
-                                
+
                                 print("\n⚠️ Returning partial results\n")
                                 print(self.provider_manager.get_status_report())
                                 self.provider_manager.save_state()
-                                
+
                                 return partial_response
-                            
+
                             # No completed steps - return normal error
                             tool_result = json.dumps({
                                 "success": False,
                                 "error": f"Fatal error: {e}",
                                 "suggestion": "This error cannot be retried. Check tool arguments."
                             })
+
+                            # Output tool call event for web UI (error case)
+                            tool_event = {
+                                "type": "tool",
+                                "name": tool_name,
+                                "args": tool_args,
+                                "result": str(tool_result)[:200]  # Truncate for display
+                            }
+                            print(json.dumps(tool_event), flush=True)
                         
                         # Add tool result to conversation
                         messages.append({

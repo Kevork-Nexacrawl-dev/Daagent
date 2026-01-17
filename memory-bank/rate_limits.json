@@ -1,10 +1,10 @@
 {
-  "timestamp": "2026-01-17T00:23:09.047912",
+  "timestamp": "2026-01-17T00:53:21.344923",
   "providers": {
     "openrouter": {
-      "requests_this_minute": 21,
+      "requests_this_minute": 0,
       "requests_this_hour": 101,
-      "last_reset_minute": "2026-01-17T00:23:08.974490",
+      "last_reset_minute": "2026-01-17T00:53:20.047002",
       "last_reset_hour": "2026-01-17T00:10:34.965800"
     }
   },
