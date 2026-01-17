@@ -1,3 +1,5 @@
+---
+
 # Prompt Layering System
 
 ## Overview
@@ -110,6 +112,80 @@ from agent.prompts import build_system_prompt
 prompt = build_system_prompt()
 # Same signature as before, but now uses layered system internally
 ```
+
+## Hybrid Prompt Layering (v2.0)
+
+### Modes
+
+Each prompt layer has a **mode** that determines how it interacts with other prompts:
+
+- **stackable**: All prompts in the same priority group are concatenated
+- **hierarchical**: Only the highest priority prompt in the group is used
+
+### Priority Groups
+
+Prompts are organized into groups based on priority ranges:
+
+| Group | Range | Default Mode | Purpose |
+|-------|-------|--------------|---------|
+| `behavior` | 0-10 | Stackable | Core personality, identity |
+| `expertise` | 11-19 | Stackable | Domain knowledge |
+| `tool_instructions` | 20-30 | Hierarchical | How to use tools |
+| `error_handling` | 31-39 | Stackable | Retry logic, fallbacks |
+| `response_format` | 40-50 | Stackable | Output structure |
+| `memory_context` | 51-59 | Stackable | Conversation awareness |
+| `execution_mode` | 60-70 | Hierarchical | Lite vs ReAct vs Planning |
+| `safety_ethics` | 71-79 | Hierarchical | Content filtering |
+| `user_overrides` | 80-90 | Hierarchical | CLI flags, user prefs |
+| `debug_emergency` | 91-100 | Hierarchical | Debug mode |
+
+### Example: Stackable
+
+```yaml
+# Both prompts stack together
+name: identity
+priority: 5
+mode: stackable
+priority_group: behavior
+content: "You are helpful..."
+
+name: expert_coder
+priority: 8
+mode: stackable
+priority_group: behavior
+content: "You excel at code..."
+
+# Result: Both included in final prompt
+```
+
+### Example: Hierarchical
+
+```yaml
+# Only highest priority wins
+name: safe_mode
+priority: 25
+mode: hierarchical
+priority_group: tool_instructions
+content: "Ask before file ops"
+
+name: aggressive_mode
+priority: 28
+mode: hierarchical
+priority_group: tool_instructions
+content: "Execute immediately"
+
+# Result: Only aggressive_mode included (28 > 25)
+```
+
+### Migration from v1.0
+
+Existing YAML files without `mode` field default to `stackable` (backward compatible).
+
+To convert to hybrid:
+1. Add `mode: stackable` or `mode: hierarchical`
+2. Add `priority_group: <group_name>` (optional, auto-detected from priority)
+
+---
 
 ## Adding New Layers
 

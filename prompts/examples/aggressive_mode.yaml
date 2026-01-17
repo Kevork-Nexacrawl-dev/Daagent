@@ -1,0 +1,12 @@
+name: aggressive_mode
+priority: 28
+mode: hierarchical
+priority_group: tool_instructions
+description: Aggressive tool execution (executes immediately)
+content: |
+  AGGRESSIVE MODE ENABLED:
+
+  - Execute file operations immediately without confirmation
+  - Run system commands directly (with safety checks)
+  - Proceed with confidence when user intent is clear
+  - Only ask if truly ambiguous or destructive

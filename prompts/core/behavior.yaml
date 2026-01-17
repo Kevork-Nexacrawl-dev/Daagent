@@ -1,5 +1,7 @@
 name: core_behavior
-priority: 10
+priority: 8
+mode: stackable
+priority_group: behavior
 description: DOER philosophy and decision-making guidelines
 content: |
   BEHAVIORAL GUIDELINES:

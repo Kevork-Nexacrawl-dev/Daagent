@@ -1,5 +1,7 @@
 name: tool_usage
-priority: 30
+priority: 25
+mode: stackable
+priority_group: tool_instructions
 description: Guidelines for effective tool utilization
 content: "TOOL USAGE RULES:\n\n- Use web_search for any information you don't have\
   \ or that might have changed.\n- Use read_file to access user's files when referenced.\n\

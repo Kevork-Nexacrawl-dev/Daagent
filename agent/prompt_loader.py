@@ -22,14 +22,52 @@ logger = logging.getLogger(__name__)
 class PromptLayer:
     """Represents a single prompt layer with metadata."""
 
-    def __init__(self, name: str, priority: int, content: str, description: str = ""):
+    def __init__(self, name: str, priority: int, content: str, 
+                 description: str = "", mode: str = "stackable", 
+                 priority_group: str = None):
         self.name = name
         self.priority = priority
         self.content = content
         self.description = description
-
+        self.mode = mode  # NEW: "stackable" or "hierarchical"
+        self.priority_group = priority_group  # NEW: Group name for organization
+        
+        # Validate mode
+        if self.mode not in ["stackable", "hierarchical"]:
+            raise ValueError(f"Invalid mode '{self.mode}'. Must be 'stackable' or 'hierarchical'")
+        
+        # Auto-detect priority group if not provided
+        if self.priority_group is None:
+            self.priority_group = self._detect_priority_group()
+    
+    def _detect_priority_group(self) -> str:
+        """Auto-detect priority group based on priority number."""
+        if 0 <= self.priority <= 10:
+            return "behavior"
+        elif 11 <= self.priority <= 19:
+            return "expertise"
+        elif 20 <= self.priority <= 30:
+            return "tool_instructions"
+        elif 31 <= self.priority <= 39:
+            return "error_handling"
+        elif 40 <= self.priority <= 50:
+            return "response_format"
+        elif 51 <= self.priority <= 59:
+            return "memory_context"
+        elif 60 <= self.priority <= 70:
+            return "execution_mode"
+        elif 71 <= self.priority <= 79:
+            return "safety_ethics"
+        elif 80 <= self.priority <= 90:
+            return "user_overrides"
+        elif 91 <= self.priority <= 100:
+            return "debug_emergency"
+        else:
+            return "custom"
+    
     def __repr__(self):
-        return f"PromptLayer(name={self.name}, priority={self.priority})"
+        return (f"PromptLayer(name={self.name}, priority={self.priority}, "
+                f"mode={self.mode}, group={self.priority_group})")
 
     def __lt__(self, other):
         """Support sorting by priority."""
@@ -80,6 +118,8 @@ def load_prompts(base_path: Path = None) -> List[PromptLayer]:
             priority = data.get("priority")
             content = data.get("content")
             description = data.get("description", "")
+            mode = data.get("mode", "stackable")  # NEW: Default to stackable
+            priority_group = data.get("priority_group")  # NEW: Optional
 
             # Validate required fields
             if not all([name, priority is not None, content]):
@@ -89,13 +129,14 @@ def load_prompts(base_path: Path = None) -> List[PromptLayer]:
                 )
                 continue
 
-            # Create layer
-            layer = PromptLayer(name, int(priority), content, description)
+            # Create layer with new fields
+            layer = PromptLayer(name, int(priority), content, description, 
+                              mode, priority_group)
             layers.append(layer)
 
             logger.info(
-                f"Loaded layer: {name} (priority={priority}) "
-                f"from {yaml_file.relative_to(base_path)}"
+                f"Loaded layer: {name} (priority={priority}, mode={mode}, "
+                f"group={layer.priority_group}) from {yaml_file.relative_to(base_path)}"
             )
 
         except yaml.YAMLError as e:
@@ -113,11 +154,12 @@ def load_prompts(base_path: Path = None) -> List[PromptLayer]:
 
 def compose_prompt(layers: List[PromptLayer]) -> str:
     """
-    Compose final system prompt from layers.
-
-    Layers are joined with double newlines and sorted by priority.
-    Assumes layers are already sorted (from load_prompts).
-
+    Compose final system prompt from layers using hybrid mode.
+    
+    Hybrid composition:
+    - Stackable mode: All prompts in group are concatenated
+    - Hierarchical mode: Only highest priority in group is used
+    
     Args:
         layers: List of PromptLayer objects.
 
@@ -130,14 +172,59 @@ def compose_prompt(layers: List[PromptLayer]) -> str:
 
     # Ensure sorted by priority
     sorted_layers = sorted(layers, key=lambda x: x.priority)
-
-    # Extract content from each layer
-    parts = [layer.content for layer in sorted_layers]
-
+    
+    # Group layers by priority_group
+    from collections import defaultdict
+    groups = defaultdict(list)
+    
+    for layer in sorted_layers:
+        groups[layer.priority_group].append(layer)
+    
+    # Process each group
+    final_parts = []
+    
+    # Process groups in priority order (using lowest priority in each group)
+    group_priorities = {
+        group: min(layer.priority for layer in layers_in_group)
+        for group, layers_in_group in groups.items()
+    }
+    
+    sorted_groups = sorted(groups.items(), key=lambda x: group_priorities[x[0]])
+    
+    for group_name, group_layers in sorted_groups:
+        # Check mode of first layer (all in group should have same mode)
+        mode = group_layers[0].mode
+        
+        if mode == "stackable":
+            # Stack all prompts in this group
+            for layer in sorted(group_layers, key=lambda x: x.priority):
+                final_parts.append(layer.content)
+                logger.debug(f"Stacked: {layer.name} (priority={layer.priority})")
+        
+        elif mode == "hierarchical":
+            # Only use highest priority prompt in group
+            highest_priority_layer = max(group_layers, key=lambda x: x.priority)
+            final_parts.append(highest_priority_layer.content)
+            logger.debug(
+                f"Hierarchical: Selected {highest_priority_layer.name} "
+                f"(priority={highest_priority_layer.priority}) from group {group_name}"
+            )
+            
+            # Log which prompts were skipped
+            skipped = [l for l in group_layers if l != highest_priority_layer]
+            if skipped:
+                logger.debug(
+                    f"  Skipped: {[l.name for l in skipped]} "
+                    f"(lower priority in hierarchical group)"
+                )
+    
     # Join with double newlines
-    composed = "\n\n".join(parts)
+    composed = "\n\n".join(final_parts)
 
-    logger.info(f"Composed prompt from {len(sorted_layers)} layers")
+    logger.info(
+        f"Composed prompt from {len(sorted_layers)} layers "
+        f"({len(final_parts)} parts in final output)"
+    )
 
     return composed
 
