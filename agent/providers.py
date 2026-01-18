@@ -32,8 +32,8 @@ class OpenRouterProvider(LLMProvider):
         self.api_key = api_key
         self.base_url = "https://openrouter.ai/api/v1"
         self.models = {
-            "conversational": "nex-agi/deepseek-v3.1-nex-n1:free",
-            "code_editing": "nex-agi/deepseek-v3.1-nex-n1:free"
+            "conversational": "tngtech/deepseek-r1t2-chimera:free",
+            "code_editing": "x-ai/grok-4-fast"
         }
 
     def get_client(self) -> OpenAI:
@@ -55,8 +55,8 @@ class HuggingFaceProvider(LLMProvider):
         self.api_key = api_key
         self.base_url = "https://api-inference.huggingface.co/v1"
         self.models = {
-            "conversational": "meta-llama/Llama-3.3-70B-Instruct",
-            "code_editing": "meta-llama/Llama-3.3-70B-Instruct"
+            "conversational": "deepseek-ai/DeepSeek-V3.2",
+            "code_editing": "deepseek-ai/DeepSeek-V3.2"  # Will be overridden by OpenRouter for code editing
         }
 
     def get_client(self) -> OpenAI:

@@ -62,8 +62,8 @@ def load_config() -> dict:
             "streaming_enabled": False
         },
         "models": {
-            "free_model": "deepseek/deepseek-chat",
-            "paid_model": "grok-fast",
+            "free_model": "tngtech/deepseek-r1t2-chimera:free",
+            "paid_model": "x-ai/grok-4-fast",
             "switch_threshold": "complex"
         }
     }
@@ -319,8 +319,8 @@ Examples:
     if args.model:
         # Map UI model names to full model IDs
         model_mapping = {
-            "deepseek-v3-free": "nex-agi/deepseek-v3.1-nex-n1:free",
-            "deepseek-v3-paid": "deepseek/deepseek-chat:paid", 
+            "deepseek-r1-free": "tngtech/deepseek-r1t2-chimera:free",
+            "deepseek-v3-hf": "deepseek-ai/DeepSeek-V3.2",
             "grok-4-fast": "x-ai/grok-4-fast",
             "claude-sonnet": "anthropic/claude-3.5-sonnet",
             "auto": None  # None means no override, use cascade

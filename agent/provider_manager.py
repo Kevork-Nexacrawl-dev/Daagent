@@ -123,16 +123,29 @@ class ProviderManager:
         }
         return key_map.get(provider_name)
 
-    def get_next_provider(self, task_complexity: str = "medium") -> LLMProvider:
+    def get_next_provider(self, task_complexity: str = "medium", task_type: str = None) -> LLMProvider:
         """
         Select optimal provider based on complexity and availability.
+        
+        For code editing tasks, always use OpenRouter with Grok.
 
         Args:
             task_complexity: "simple", "medium", or "complex"
+            task_type: Task type string (e.g., "code_editing")
 
         Returns:
             Best available provider
         """
+        # Force OpenRouter for code editing tasks
+        if task_type == "code_editing":
+            if "openrouter" in self.providers:
+                provider = self.providers["openrouter"]
+                print(f"🎯 Selected provider: {provider.provider_name} "
+                      f"(forced for code editing)")
+                return provider
+            else:
+                raise RuntimeError("OpenRouter required for code editing but not available!")
+        
         # Reset expired rate limits
         self._reset_expired_limits()
 
@@ -156,13 +169,14 @@ class ProviderManager:
         print(f"⚠️ All providers rate limited, using fallback: {fallback_provider.provider_name}")
         return fallback_provider
 
-    def handle_rate_limit(self, provider_name: str, error: Exception) -> LLMProvider:
+    def handle_rate_limit(self, provider_name: str, error: Exception, task_type: str = None) -> LLMProvider:
         """
         Called when rate limit hit, returns next available provider.
 
         Args:
             provider_name: Provider that hit rate limit
             error: The rate limit exception
+            task_type: Task type string (e.g., "code_editing")
 
         Returns:
             Next available provider
@@ -175,8 +189,8 @@ class ProviderManager:
             state.requests_this_minute = self.PROVIDER_CASCADE[provider_name].requests_per_minute
             state.requests_this_hour = self.PROVIDER_CASCADE[provider_name].requests_per_hour
 
-        # Get next provider
-        next_provider = self.get_next_provider()
+        # Get next provider (pass task_type to maintain code editing constraint)
+        next_provider = self.get_next_provider(task_type=task_type)
 
         if next_provider.provider_name != provider_name:
             print(f"🔄 Falling back to: {next_provider.provider_name}")

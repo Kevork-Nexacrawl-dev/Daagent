@@ -40,7 +40,11 @@ export async function POST(req: NextRequest) {
           '--model', selectedModel  // ADD THIS ARG
         ], {
           cwd: process.cwd() + '/../',  // Go up to daagent/ root
-          env: { ...process.env, PYTHONUNBUFFERED: '1' }
+          env: { 
+            ...process.env, 
+            PYTHONUNBUFFERED: '1',
+            PYTHONIOENCODING: 'utf-8'  // Force UTF-8 encoding for stdout/stderr
+          }
         });
 
         let buffer = '';

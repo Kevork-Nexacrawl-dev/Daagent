@@ -39,13 +39,13 @@ class Config:
     MODELS = {
         # Development (free)
         "dev": {
-            TaskType.CONVERSATIONAL: "nex-agi/deepseek-v3.1-nex-n1:free",
-            TaskType.CODE_EDITING: "nex-agi/deepseek-v3.1-nex-n1:free",
+            TaskType.CONVERSATIONAL: "tngtech/deepseek-r1t2-chimera:free",
+            TaskType.CODE_EDITING: "x-ai/grok-4-fast",  # Always use Grok for code editing
         },
         # Production (paid but optimized)
         "prod": {
-            TaskType.CONVERSATIONAL: "deepseek/deepseek-v3.2",
-            TaskType.CODE_EDITING: "x-ai/grok-4-fast",
+            TaskType.CONVERSATIONAL: "deepseek-ai/DeepSeek-V3.2",
+            TaskType.CODE_EDITING: "x-ai/grok-4-fast",  # Always use Grok for code editing
         }
     }
     
@@ -105,11 +105,18 @@ class Config:
         return Anthropic(api_key=cls.ANTHROPIC_API_KEY)
     
     @classmethod
-    def get_provider(cls):
-        """Get configured provider instance"""
+    def get_provider(cls, task_type: TaskType = None):
+        """Get configured provider instance
+        
+        For code editing tasks, always use OpenRouter with Grok
+        """
         from agent.providers import PROVIDERS
         
         provider_name = cls.OVERRIDE_PROVIDER or cls.PROVIDER
+        
+        # Force OpenRouter for code editing tasks
+        if task_type == TaskType.CODE_EDITING:
+            provider_name = "openrouter"
         
         if provider_name not in PROVIDERS:
             raise ValueError(f"Unknown provider: {provider_name}")

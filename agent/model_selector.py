@@ -27,25 +27,21 @@ class ModelSelector:
 
         # Model mappings for UI values to actual model IDs
         self.model_mappings = {
-            "deepseek-v3-free": "nex-agi/deepseek-v3.1-nex-n1:free",
-            "deepseek-v3-paid": "deepseek/deepseek-chat:paid",
+            "deepseek-r1-free": "tngtech/deepseek-r1t2-chimera:free",
+            "deepseek-v3-hf": "deepseek-ai/DeepSeek-V3.2",
             "grok-4-fast": "x-ai/grok-4-fast",
             "claude-sonnet": "anthropic/claude-3.5-sonnet"
         }
 
         # Display names and cost tiers for UI
         self.model_info = {
-            "nex-agi/deepseek-v3.1-nex-n1:free": {
-                "display_name": "DeepSeek V3 (Free)",
+            "tngtech/deepseek-r1t2-chimera:free": {
+                "display_name": "DeepSeek R1 Chimera (Free)",
                 "cost_tier": "free"
             },
-            "deepseek/deepseek-chat": {
-                "display_name": "DeepSeek V3 (Free)",
+            "deepseek-ai/DeepSeek-V3.2": {
+                "display_name": "DeepSeek V3.2 (HuggingFace)",
                 "cost_tier": "free"
-            },
-            "deepseek/deepseek-chat:paid": {
-                "display_name": "DeepSeek V3 (Paid)",
-                "cost_tier": "paid"
             },
             "x-ai/grok-4-fast": {
                 "display_name": "Grok 4 Fast",
@@ -99,7 +95,7 @@ class ModelSelector:
         """Existing automatic cascade logic."""
         # This should integrate with ProviderManager's cascade logic
         # For now, return free tier as default
-        return "deepseek/deepseek-chat"
+        return "tngtech/deepseek-r1t2-chimera:free"
 
     def get_model_info_by_id(self, model_id: str) -> Dict[str, str]:
         """Get model info by model ID for actual selected models."""

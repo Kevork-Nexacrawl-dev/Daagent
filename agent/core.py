@@ -120,7 +120,7 @@ class UnifiedAgent:
         complexity = self._assess_complexity(user_message, task_type)
         
         # Step 5: Get optimal provider with fallback logic
-        provider = self.provider_manager.get_next_provider(complexity)
+        provider = self.provider_manager.get_next_provider(complexity, task_type.value)
         client = provider.get_client()
         model = provider.get_model_name(task_type.value)
         
@@ -411,7 +411,7 @@ class UnifiedAgent:
             
         except Exception as e:
             if self._is_rate_limit_error(e):
-                provider = self.provider_manager.handle_rate_limit(provider.provider_name.lower(), e)
+                provider = self.provider_manager.handle_rate_limit(provider.provider_name.lower(), e, task_type.value)
                 return self._execute_lite_mode(user_message, provider.get_client(), 
                                              provider.get_model_name(task_type.value), task_type, provider)
             
@@ -672,7 +672,7 @@ class UnifiedAgent:
                 if self._is_rate_limit_error(e):
                     # Handle rate limit with fallback
                     provider = self.provider_manager.handle_rate_limit(
-                        provider.provider_name.lower(), e
+                        provider.provider_name.lower(), e, task_type.value
                     )
                     client = provider.get_client()
                     model = provider.get_model_name(task_type.value)

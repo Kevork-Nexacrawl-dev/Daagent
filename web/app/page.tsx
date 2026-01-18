@@ -171,14 +171,14 @@ export default function ChatPage() {
                     <span>🎯 Auto (Smart)</span>
                   </div>
                 </SelectItem>
-                <SelectItem value="deepseek-v3-free" className="text-white">
+                <SelectItem value="deepseek-r1-free" className="text-white">
                   <div className="flex items-center gap-2">
-                    <span>🆓 DeepSeek V3 (Free)</span>
+                    <span>🆓 DeepSeek R1 Chimera (Free)</span>
                   </div>
                 </SelectItem>
-                <SelectItem value="deepseek-v3-paid" className="text-white">
+                <SelectItem value="deepseek-v3-hf" className="text-white">
                   <div className="flex items-center gap-2">
-                    <span>💰 DeepSeek V3 (Paid)</span>
+                    <span>🤗 DeepSeek V3.2 (HuggingFace)</span>
                   </div>
                 </SelectItem>
                 <SelectItem value="grok-4-fast" className="text-white">
@@ -229,28 +229,32 @@ export default function ChatPage() {
                     <Bot className="w-5 h-5" />
                   </div>
                   <div className="flex-1 space-y-3">
-                    {/* REPLACED: Use ReactMarkdown instead of plain text */}
                     <div className="prose prose-invert max-w-none">
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
-                        rehypePlugins={[rehypeRaw]}
                         components={{
-                          code({ node, className, children, ...props }: any) {
+                          code(props) {
+                            const { className, children, ...rest } = props;
                             const match = /language-(\w+)/.exec(className || '');
                             const language = match ? match[1] : '';
                             const isInline = !className?.includes('language-');
-
-                            return isInline ? (
-                              <code className="px-1.5 py-0.5 bg-gray-800 rounded text-sm font-mono text-blue-400" {...props}>
-                                {children}
-                              </code>
-                            ) : (
-                              <CodeBlock language={language} className={className}>
-                                {String(children).replace(/\n$/, '')}
-                              </CodeBlock>
-                            );
+                            
+                            if (isInline) {
+                              return (
+                                <code className="px-1.5 py-0.5 bg-gray-800 rounded text-sm font-mono text-blue-400" {...rest}>
+                                  {children || ''}
+                                </code>
+                              );
+                            } else {
+                              return (
+                                <CodeBlock language={language} className={className}>
+                                  {String(children || '').replace(/\n$/, '')}
+                                </CodeBlock>
+                              );
+                            }
                           },
-                          a({ href, children }) {
+                          a(props) {
+                            const { href, children } = props;
                             return (
                               <a
                                 href={href}
@@ -258,53 +262,63 @@ export default function ChatPage() {
                                 rel="noopener noreferrer"
                                 className="text-blue-400 hover:text-blue-300 underline"
                               >
-                                {children}
+                                {children || ''}
                               </a>
                             );
                           },
-                          p({ children }) {
-                            return <p className="text-white mb-4 last:mb-0">{children}</p>;
+                          p(props) {
+                            const { children } = props;
+                            return <p className="text-white mb-4 last:mb-0">{children || ''}</p>;
                           },
-                          ul({ children }) {
-                            return <ul className="list-disc list-inside text-white mb-4 space-y-1">{children}</ul>;
+                          ul(props) {
+                            const { children } = props;
+                            return <ul className="list-disc list-inside text-white mb-4 space-y-1">{children || ''}</ul>;
                           },
-                          ol({ children }) {
-                            return <ol className="list-decimal list-inside text-white mb-4 space-y-1">{children}</ol>;
+                          ol(props) {
+                            const { children } = props;
+                            return <ol className="list-decimal list-inside text-white mb-4 space-y-1">{children || ''}</ol>;
                           },
-                          h1({ children }) {
-                            return <h1 className="text-2xl font-bold text-white mb-4 mt-6">{children}</h1>;
+                          h1(props) {
+                            const { children } = props;
+                            return <h1 className="text-2xl font-bold text-white mb-4 mt-6">{children || ''}</h1>;
                           },
-                          h2({ children }) {
-                            return <h2 className="text-xl font-bold text-white mb-3 mt-5">{children}</h2>;
+                          h2(props) {
+                            const { children } = props;
+                            return <h2 className="text-xl font-bold text-white mb-3 mt-5">{children || ''}</h2>;
                           },
-                          h3({ children }) {
-                            return <h3 className="text-lg font-bold text-white mb-2 mt-4">{children}</h3>;
+                          h3(props) {
+                            const { children } = props;
+                            return <h3 className="text-lg font-bold text-white mb-2 mt-4">{children || ''}</h3>;
                           },
-                          blockquote({ children }) {
+                          blockquote(props) {
+                            const { children } = props;
                             return (
                               <blockquote className="border-l-4 border-gray-600 pl-4 italic text-gray-300 my-4">
-                                {children}
+                                {children || ''}
                               </blockquote>
                             );
                           },
-                          table({ children }) {
+                          table(props) {
+                            const { children } = props;
                             return (
                               <div className="overflow-x-auto my-4">
-                                <table className="min-w-full border border-gray-700">{children}</table>
+                                <table className="min-w-full border border-gray-700">{children || ''}</table>
                               </div>
                             );
                           },
-                          th({ children }) {
+                          th(props) {
+                            const { children } = props;
                             return (
                               <th className="border border-gray-700 px-4 py-2 bg-gray-800 text-left text-white font-semibold">
-                                {children}
+                                {children || ''}
                               </th>
                             );
                           },
-                          td({ children }) {
+                          td(props) {
+                            const { children } = props;
                             return (
                               <td className="border border-gray-700 px-4 py-2 text-gray-300">
-                                {children}
+                                {children || ''}
                               </td>
                             );
                           },
@@ -356,20 +370,63 @@ export default function ChatPage() {
                   <ReactMarkdown
                     remarkPlugins={[remarkGfm]}
                     components={{
-                      code({ node, className, children, ...props }: any) {
+                      code(props) {
+                        const { className, children, ...rest } = props;
                         const isInline = !className?.includes('language-');
                         return isInline ? (
-                          <code className="px-1.5 py-0.5 bg-gray-800 rounded text-sm font-mono text-blue-400" {...props}>
-                            {children}
+                          <code className="px-1.5 py-0.5 bg-gray-800 rounded text-sm font-mono text-blue-400" {...rest}>
+                            {children || ''}
                           </code>
                         ) : (
                           <pre className="bg-gray-950 p-4 rounded-lg overflow-x-auto">
-                            <code className="text-sm font-mono text-gray-100">{children}</code>
+                            <code className="text-sm font-mono text-gray-100">{children || ''}</code>
                           </pre>
                         );
                       },
-                      p({ children }) {
-                        return <p className="text-white mb-2 last:mb-0">{children}</p>;
+                      p(props) {
+                        const { children } = props;
+                        return <p className="text-white mb-2 last:mb-0">{children || ''}</p>;
+                      },
+                      a(props) {
+                        const { href, children } = props;
+                        return (
+                          <a
+                            href={href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-blue-400 hover:text-blue-300 underline"
+                          >
+                            {children || ''}
+                          </a>
+                        );
+                      },
+                      ul(props) {
+                        const { children } = props;
+                        return <ul className="list-disc list-inside text-white mb-4 space-y-1">{children || ''}</ul>;
+                      },
+                      ol(props) {
+                        const { children } = props;
+                        return <ol className="list-decimal list-inside text-white mb-4 space-y-1">{children || ''}</ol>;
+                      },
+                      h1(props) {
+                        const { children } = props;
+                        return <h1 className="text-2xl font-bold text-white mb-4 mt-6">{children || ''}</h1>;
+                      },
+                      h2(props) {
+                        const { children } = props;
+                        return <h2 className="text-xl font-bold text-white mb-3 mt-5">{children || ''}</h2>;
+                      },
+                      h3(props) {
+                        const { children } = props;
+                        return <h3 className="text-lg font-bold text-white mb-2 mt-4">{children || ''}</h3>;
+                      },
+                      blockquote(props) {
+                        const { children } = props;
+                        return (
+                          <blockquote className="border-l-4 border-gray-600 pl-4 italic text-gray-300 my-4">
+                            {children || ''}
+                          </blockquote>
+                        );
                       },
                     }}
                   >
