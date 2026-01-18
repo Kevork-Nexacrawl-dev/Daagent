@@ -215,7 +215,7 @@ def main():
         user_query = sys.argv[1]
 
         # Initialize agent with minimal output
-        agent = UnifiedAgent()
+        agent = UnifiedAgent(model_preference=args.model)
 
         # Run query and exit
         response = safe_agent_run(agent, user_query)
@@ -317,7 +317,15 @@ Examples:
     if args.prod_mode:
         Config.DEV_MODE = False
     if args.model:
-        Config.OVERRIDE_MODEL = args.model
+        # Map UI model names to full model IDs
+        model_mapping = {
+            "deepseek-v3-free": "nex-agi/deepseek-v3.1-nex-n1:free",
+            "deepseek-v3-paid": "deepseek/deepseek-chat:paid", 
+            "grok-4-fast": "x-ai/grok-4-fast",
+            "claude-sonnet": "anthropic/claude-3.5-sonnet",
+            "auto": None  # None means no override, use cascade
+        }
+        Config.OVERRIDE_MODEL = model_mapping.get(args.model, args.model)
     if args.provider:
         Config.OVERRIDE_PROVIDER = args.provider
     if args.max_iterations:
@@ -346,7 +354,7 @@ Examples:
 
     # Initialize agent
     console.print("[blue]Initializing Daagent...[/blue]")
-    agent = UnifiedAgent()
+    agent = UnifiedAgent(model_preference=args.model)
     
     # Handle list tools
     if args.list_tools:

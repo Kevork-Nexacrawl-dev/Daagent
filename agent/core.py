@@ -19,6 +19,7 @@ from agent.response_cache import ResponseCache
 from agent.checkpoint import TaskCheckpoint
 from agent.partial_result_handler import PartialResultHandler
 from agent.errors import PartialSuccess
+from agent.model_selector import ModelSelector
 import hashlib
 
 
@@ -30,9 +31,12 @@ class UnifiedAgent:
     - Prompt layering for behavior control
     """
     
-    def __init__(self):
+    def __init__(self, model_preference: str = "auto"):
         """Initialize agent with config and prompt manager"""
         Config.validate()
+        
+        # NEW: Initialize model selector with preference
+        self.model_selector = ModelSelector(preference=model_preference)
         
         # NEW: Use provider manager instead of single provider
         self.provider_manager = ProviderManager()
@@ -119,6 +123,15 @@ class UnifiedAgent:
         provider = self.provider_manager.get_next_provider(complexity)
         client = provider.get_client()
         model = provider.get_model_name(task_type.value)
+        
+        # Emit actual selected model info to web UI
+        model_info = self.model_selector.get_model_info_by_id(model)
+        model_event = {
+            "type": "model_info",
+            "model_name": model_info.get("display_name", model),
+            "cost_tier": model_info.get("cost_tier", "unknown")
+        }
+        print(json.dumps(model_event), flush=True)
         
         print(f"\n{'='*60}")
         print(f"🎯 Task Type: {task_type.value} (complexity: {complexity})")

@@ -12,6 +12,13 @@ import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
 import { CodeBlock } from '@/components/code-block';
 import { Toaster } from 'react-hot-toast';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -31,6 +38,8 @@ export default function ChatPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [currentResponse, setCurrentResponse] = useState('');
   const [currentToolCalls, setCurrentToolCalls] = useState<ToolCall[]>([]);
+  const [selectedModel, setSelectedModel] = useState<string>('auto');
+  const [activeModel, setActiveModel] = useState<string>('Auto (Smart)');
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -59,7 +68,10 @@ export default function ChatPage() {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: [...messages, userMessage] }),
+        body: JSON.stringify({ 
+          messages: [...messages, userMessage],
+          selectedModel: selectedModel  // ADD THIS LINE
+        }),
       });
 
       if (!response.body) {
@@ -91,6 +103,9 @@ export default function ChatPage() {
                 const newTool = { name: event.name, args: event.args, result: event.result };
                 streamedToolCalls = [...streamedToolCalls, newTool];
                 setCurrentToolCalls(streamedToolCalls);
+              } else if (event.type === 'model_info') {
+                // NEW: Update active model display
+                setActiveModel(event.model_name);
               } else if (event.type === 'done') {
                 // Finalize with local variables (no closure issues)
                 setMessages((prev) => [
@@ -131,11 +146,53 @@ export default function ChatPage() {
     <div className="flex flex-col h-screen bg-gray-950">
       {/* Header */}
       <header className="border-b border-gray-800 p-4">
-        <div className="max-w-4xl mx-auto flex items-center gap-3">
-          <Bot className="w-8 h-8 text-blue-500" />
-          <div>
-            <h1 className="text-xl font-bold text-white">Daagent</h1>
-            <p className="text-sm text-gray-400">AI Agent with Dynamic Tools</p>
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Bot className="w-8 h-8 text-blue-500" />
+            <div>
+              <h1 className="text-xl font-bold text-white">Daagent</h1>
+              <p className="text-sm text-gray-400">AI Agent with Dynamic Tools</p>
+            </div>
+          </div>
+
+          {/* Model Selector */}
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <p className="text-xs text-gray-500">Active Model</p>
+              <p className="text-sm text-white font-medium">{activeModel}</p>
+            </div>
+            <Select value={selectedModel} onValueChange={setSelectedModel}>
+              <SelectTrigger className="w-[200px] bg-gray-900 border-gray-800 text-white">
+                <SelectValue placeholder="Select model" />
+              </SelectTrigger>
+              <SelectContent className="bg-gray-900 border-gray-800">
+                <SelectItem value="auto" className="text-white">
+                  <div className="flex items-center gap-2">
+                    <span>🎯 Auto (Smart)</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="deepseek-v3-free" className="text-white">
+                  <div className="flex items-center gap-2">
+                    <span>🆓 DeepSeek V3 (Free)</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="deepseek-v3-paid" className="text-white">
+                  <div className="flex items-center gap-2">
+                    <span>💰 DeepSeek V3 (Paid)</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="grok-4-fast" className="text-white">
+                  <div className="flex items-center gap-2">
+                    <span>⚡ Grok 4 Fast (Code)</span>
+                  </div>
+                </SelectItem>
+                <SelectItem value="claude-sonnet" className="text-white">
+                  <div className="flex items-center gap-2">
+                    <span>🧠 Claude Sonnet (Reasoning)</span>
+                  </div>
+                </SelectItem>
+              </SelectContent>
+            </Select>
           </div>
         </div>
       </header>

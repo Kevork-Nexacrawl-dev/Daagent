@@ -11,6 +11,7 @@ interface ChatMessage {
 
 interface RequestBody {
   messages: ChatMessage[];
+  selectedModel?: string;  // ADD THIS
 }
 
 export async function POST(req: NextRequest) {
@@ -24,13 +25,20 @@ export async function POST(req: NextRequest) {
 
     // Get the latest user message
     const userMessage = messages[messages.length - 1].content;
+    const selectedModel = body.selectedModel || 'auto';  // ADD THIS
 
     // Set up SSE stream
     const encoder = new TextEncoder();
     const stream = new ReadableStream({
       start(controller) {
         // Spawn Python agent process
-        const pythonProcess = spawn('python', ['-u', '-m', 'agent', userMessage], {
+        const pythonProcess = spawn('python', [
+          '-u', 
+          '-m', 
+          'agent', 
+          userMessage,
+          '--model', selectedModel  // ADD THIS ARG
+        ], {
           cwd: process.cwd() + '/../',  // Go up to daagent/ root
           env: { ...process.env, PYTHONUNBUFFERED: '1' }
         });

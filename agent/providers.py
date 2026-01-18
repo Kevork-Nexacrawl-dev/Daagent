@@ -40,6 +40,9 @@ class OpenRouterProvider(LLMProvider):
         return OpenAI(api_key=self.api_key, base_url=self.base_url)
 
     def get_model_name(self, task_type: str) -> str:
+        from agent.config import Config
+        if Config.OVERRIDE_MODEL:
+            return Config.OVERRIDE_MODEL
         return self.models.get(task_type, self.models["conversational"])
 
     @property
@@ -60,6 +63,9 @@ class HuggingFaceProvider(LLMProvider):
         return OpenAI(api_key=self.api_key, base_url=self.base_url)
 
     def get_model_name(self, task_type: str) -> str:
+        from agent.config import Config
+        if Config.OVERRIDE_MODEL:
+            return Config.OVERRIDE_MODEL
         return self.models.get(task_type, self.models["conversational"])
 
     @property
@@ -80,6 +86,9 @@ class TogetherProvider(LLMProvider):
         return OpenAI(api_key=self.api_key, base_url=self.base_url)
 
     def get_model_name(self, task_type: str) -> str:
+        from agent.config import Config
+        if Config.OVERRIDE_MODEL:
+            return Config.OVERRIDE_MODEL
         return self.models.get(task_type, self.models["conversational"])
 
     @property
@@ -101,6 +110,9 @@ class GeminiProvider(LLMProvider):
         return OpenAI(api_key=self.api_key, base_url=self.base_url)
 
     def get_model_name(self, task_type: str) -> str:
+        from agent.config import Config
+        if Config.OVERRIDE_MODEL:
+            return Config.OVERRIDE_MODEL
         return self.models.get(task_type, self.models["conversational"])
 
     @property
@@ -122,6 +134,9 @@ class GrokProvider(LLMProvider):
         return OpenAI(api_key=self.api_key, base_url=self.base_url)
 
     def get_model_name(self, task_type: str) -> str:
+        from agent.config import Config
+        if Config.OVERRIDE_MODEL:
+            return Config.OVERRIDE_MODEL
         return self.models.get(task_type, self.models["conversational"])
 
     @property
