@@ -4,6 +4,8 @@ Core agent with tool-calling loop and dynamic model selection.
 
 from typing import List, Dict, Any, Optional
 import json
+import sys
+import os
 from openai import OpenAI
 
 from rich.live import Live
@@ -35,6 +37,9 @@ class UnifiedAgent:
         """Initialize agent with config and prompt manager"""
         Config.validate()
         
+        # Check if running in web mode (stdout used for JSON events)
+        self.web_mode = os.getenv('DAAGENT_WEB_MODE') == '1'
+        
         # NEW: Initialize model selector with preference
         self.model_selector = ModelSelector(preference=model_preference)
         
@@ -57,11 +62,13 @@ class UnifiedAgent:
         if not Config.ENABLE_LAZY_TOOLS:
             self._ensure_tools_loaded()
         
-        print("🤖 Unified Agent initialized")
-        print(f"   Mode: {'DEV' if Config.DEV_MODE else 'PROD'}")
-        print(f"   Tools: {'Not loaded yet (lazy)' if Config.ENABLE_LAZY_TOOLS else f'{len(self.available_tools)} available'}")
-        print(f"   Providers: {len(self.provider_manager.providers)} loaded")
-        print(f"   Optimizations: {'ENABLED' if Config.ENABLE_QUERY_CLASSIFICATION else 'DISABLED'}")
+        if not self.web_mode:
+            sys.stderr.write("🤖 Unified Agent initialized\n")
+            sys.stderr.write(f"   Mode: {'DEV' if Config.DEV_MODE else 'PROD'}\n")
+            sys.stderr.write(f"   Tools: {'Not loaded yet (lazy)' if Config.ENABLE_LAZY_TOOLS else f'{len(self.available_tools)} available'}\n")
+            sys.stderr.write(f"   Providers: {len(self.provider_manager.providers)} loaded\n")
+            sys.stderr.write(f"   Optimizations: {'ENABLED' if Config.ENABLE_QUERY_CLASSIFICATION else 'DISABLED'}\n")
+            sys.stderr.flush()
     
     def _ensure_tools_loaded(self):
         """Ensure tools are loaded (lazy loading)"""
@@ -77,7 +84,9 @@ class UnifiedAgent:
         # Register tool schemas for OpenAI function calling
         for tool_name, tool_info in discovered_tools.items():
             self.available_tools.append(tool_info['schema'])
-            print(f"   ✓ Registered tool: {tool_name}")
+            if not self.web_mode:
+                sys.stderr.write(f"   ✓ Registered tool: {tool_name}\n")
+                sys.stderr.flush()
         
         # Discover MCP warehouse tools (only if MCP is enabled)
         if Config.ENABLE_MCP and Config.MCP_WAREHOUSE_PATH:
@@ -101,7 +110,9 @@ class UnifiedAgent:
         # Step 1: Classify query for optimization
         if Config.ENABLE_QUERY_CLASSIFICATION:
             query_type = QueryClassifier.classify(user_message)
-            print(f"🔍 Query classified as: {query_type.value} ({QueryClassifier.get_execution_mode(query_type)})")
+            if not self.web_mode:
+                sys.stderr.write(f"🔍 Query classified as: {query_type.value} ({QueryClassifier.get_execution_mode(query_type)})\n")
+                sys.stderr.flush()
         else:
             query_type = QueryType.COMPLEX  # Default to full ReAct when disabled
         
@@ -109,7 +120,9 @@ class UnifiedAgent:
         if Config.ENABLE_RESPONSE_CACHE and QueryClassifier.should_check_cache(query_type):
             cached_response = self.response_cache.get(user_message)
             if cached_response:
-                print("⚡ Cache hit! Returning instant response")
+                if not self.web_mode:
+                    sys.stderr.write("⚡ Cache hit! Returning instant response\n")
+                    sys.stderr.flush()
                 return cached_response
         
         # Step 3: Detect or use provided task type
@@ -133,11 +146,13 @@ class UnifiedAgent:
         }
         print(json.dumps(model_event), flush=True)
         
-        print(f"\n{'='*60}")
-        print(f"🎯 Task Type: {task_type.value} (complexity: {complexity})")
-        print(f"🏢 Provider: {provider.provider_name}")
-        print(f"🧠 Model: {model}")
-        print(f"{'='*60}\n")
+        if not self.web_mode:
+            sys.stderr.write(f"\n{'='*60}\n")
+            sys.stderr.write(f"🎯 Task Type: {task_type.value} (complexity: {complexity})\n")
+            sys.stderr.write(f"🏢 Provider: {provider.provider_name}\n")
+            sys.stderr.write(f"🧠 Model: {model}\n")
+            sys.stderr.write(f"{'='*60}\n\n")
+            sys.stderr.flush()
         
         # Step 6: Execute based on query type
         if query_type == QueryType.INFORMATIONAL and Config.ENABLE_LAZY_TOOLS:
@@ -370,13 +385,17 @@ class UnifiedAgent:
         Returns:
             LLM response
         """
-        print("🚀 Lite mode: Single LLM call (no tools)")
+        if not self.web_mode:
+            sys.stderr.write("🚀 Lite mode: Single LLM call (no tools)\n")
+            sys.stderr.flush()
         
         messages = self._build_messages_optimized(user_message, include_tools=False)
         
         try:
             if Config.ENABLE_STREAMING:
-                print("\n🤖 Assistant:")
+                if not self.web_mode:
+                    sys.stderr.write("\n🤖 Assistant:\n")
+                    sys.stderr.flush()
                 final_response, _ = self._stream_response(
                     client, model, messages, tools=None
                 )
@@ -404,8 +423,12 @@ class UnifiedAgent:
             ])
             
             print("\n✅ Lite mode completed\n")
-            print(self.provider_manager.get_status_report())
+            if not self.web_mode:
+                sys.stderr.write(self.provider_manager.get_status_report())
+                sys.stderr.flush()
             self.provider_manager.save_state()
+            
+            return final_response
             
             return final_response
             
@@ -416,8 +439,12 @@ class UnifiedAgent:
                                              provider.get_model_name(task_type.value), task_type, provider)
             
             print(f"❌ Lite mode error: {e}")
-            print(self.provider_manager.get_status_report())
+            if not self.web_mode:
+                sys.stderr.write(self.provider_manager.get_status_report())
+                sys.stderr.flush()
             self.provider_manager.save_state()
+            
+            return f"I encountered an error: {e}"
             
             return f"I encountered an error: {e}"
     
@@ -437,7 +464,9 @@ class UnifiedAgent:
         Returns:
             Final response after tool calling loop
         """
-        print("🔄 Full ReAct mode: Tool calling loop")
+        if not self.web_mode:
+            sys.stderr.write("🔄 Full ReAct mode: Tool calling loop\n")
+            sys.stderr.flush()
         
         messages = self._build_messages_optimized(user_message, 
                                                  include_tools=self._should_include_tools(query_type))
@@ -448,18 +477,24 @@ class UnifiedAgent:
         # Initialize checkpoint for partial success tracking
         task_id = hashlib.md5(user_message.encode()).hexdigest()[:12]
         checkpoint = TaskCheckpoint(task_id)
-        print(f"📍 Checkpoint ID: {task_id}")
+        if not self.web_mode:
+            sys.stderr.write(f"📍 Checkpoint ID: {task_id}\n")
+            sys.stderr.flush()
         
         while iteration < max_iterations:
             iteration += 1
-            print(f"[Iteration {iteration}/{max_iterations}]")
+            if not self.web_mode:
+                sys.stderr.write(f"[Iteration {iteration}/{max_iterations}]\n")
+                sys.stderr.flush()
             
             try:
                 should_use_tools = self._should_include_tools(query_type)
                 tools = self._get_tools_for_request(query_type) if should_use_tools else None
                 
                 if Config.ENABLE_STREAMING:
-                    print(f"\n🤖 Assistant (iteration {iteration}):")
+                    if not self.web_mode:
+                        sys.stderr.write(f"\n🤖 Assistant (iteration {iteration}):\n")
+                        sys.stderr.flush()
                     content, tool_calls_data = self._stream_response(
                         client, model, messages, 
                         tools=tools,
@@ -503,7 +538,9 @@ class UnifiedAgent:
                 
                 # Check if agent wants to use tools
                 if message.tool_calls and self._should_include_tools(query_type):
-                    print(f"🔧 Agent calling {len(message.tool_calls)} tool(s)...")
+                    if not self.web_mode:
+                        sys.stderr.write(f"🔧 Agent calling {len(message.tool_calls)} tool(s)...\n")
+                        sys.stderr.flush()
                     
                     # Add assistant message with tool calls
                     messages.append({
@@ -527,7 +564,9 @@ class UnifiedAgent:
                         tool_name = tool_call.function.name
                         tool_args = json.loads(tool_call.function.arguments)
                         
-                        print(f"   → {tool_name}({tool_args})")
+                        if not self.web_mode:
+                            sys.stderr.write(f"   → {tool_name}({tool_args})\n")
+                            sys.stderr.flush()
                         
                         # Execute tool with retry logic and fallbacks
                         try:
@@ -563,7 +602,9 @@ class UnifiedAgent:
                                     )
                                     
                                     print("\n⚠️ Returning partial results\n")
-                                    print(self.provider_manager.get_status_report())
+                                    if not self.web_mode:
+                                        sys.stderr.write(self.provider_manager.get_status_report())
+                                        sys.stderr.flush()
                                     self.provider_manager.save_state()
                                     
                                     return partial_response
@@ -608,8 +649,12 @@ class UnifiedAgent:
                                 )
 
                                 print("\n⚠️ Returning partial results\n")
-                                print(self.provider_manager.get_status_report())
+                                if not self.web_mode:
+                                    sys.stderr.write(self.provider_manager.get_status_report())
+                                    sys.stderr.flush()
                                 self.provider_manager.save_state()
+
+                                return partial_response
 
                                 return partial_response
 
@@ -658,7 +703,9 @@ class UnifiedAgent:
                 checkpoint.save_to_file()
                 
                 # Show cost report
-                print(self.provider_manager.get_status_report())
+                if not self.web_mode:
+                    sys.stderr.write(self.provider_manager.get_status_report())
+                    sys.stderr.flush()
                 
                 # Save state for persistence
                 self.provider_manager.save_state()
@@ -677,20 +724,24 @@ class UnifiedAgent:
                     client = provider.get_client()
                     model = provider.get_model_name(task_type.value)
                     
-                    print(f"🔄 Retrying with {provider.provider_name}...")
+                    if not self.web_mode:
+                        sys.stderr.write(f"🔄 Retrying with {provider.provider_name}...\n")
+                        sys.stderr.flush()
                     continue
                 
                 # Other errors - fail gracefully
-                print(f"❌ Error in iteration {iteration}: {e}")
-                
-                # Show status even on failure
-                print(self.provider_manager.get_status_report())
+                if not self.web_mode:
+                    sys.stderr.write(f"❌ Error in iteration {iteration}: {e}\n")
+                    sys.stderr.write(self.provider_manager.get_status_report())
+                    sys.stderr.flush()
                 self.provider_manager.save_state()
                 
                 return f"I encountered an error: {e}"
         
         # Max iterations reached
-        print(self.provider_manager.get_status_report())
+        if not self.web_mode:
+            sys.stderr.write(self.provider_manager.get_status_report())
+            sys.stderr.flush()
         self.provider_manager.save_state()
         
         return "⚠️ Max iterations reached. Task may be incomplete."
@@ -758,4 +809,6 @@ class UnifiedAgent:
         Reset conversation history.
         """
         self.conversation_history = []
-        print("Conversation history cleared")
+        if not self.web_mode:
+            sys.stderr.write("Conversation history cleared\n")
+            sys.stderr.flush()

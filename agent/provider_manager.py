@@ -7,6 +7,8 @@ and cost optimization.
 
 import json
 import time
+import sys
+import os
 from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Dict, Any, Optional, List
@@ -66,6 +68,7 @@ class ProviderManager:
     }
 
     def __init__(self):
+        self.web_mode = os.getenv('DAAGENT_WEB_MODE') == '1'
         self.providers: Dict[str, LLMProvider] = {}
         self.rate_limits: Dict[str, RateLimitState] = {}
         self.usage_tracker: Dict[str, int] = {}
@@ -89,9 +92,13 @@ class ProviderManager:
                     loaded_providers[provider_name] = provider
                     self.rate_limits[provider_name] = RateLimitState()
                     self.usage_tracker[provider_name] = 0
-                    print(f"✓ Loaded provider: {provider_name}")
+                    if not self.web_mode:
+                        sys.stderr.write(f"✓ Loaded provider: {provider_name}\n")
+                        sys.stderr.flush()
             except Exception as e:
-                print(f"⚠️ Failed to load {provider_name}: {e}")
+                if not self.web_mode:
+                    sys.stderr.write(f"⚠️ Failed to load {provider_name}: {e}\n")
+                    sys.stderr.flush()
 
         if not loaded_providers:
             raise RuntimeError("No providers could be loaded!")
@@ -140,8 +147,10 @@ class ProviderManager:
         if task_type == "code_editing":
             if "openrouter" in self.providers:
                 provider = self.providers["openrouter"]
-                print(f"🎯 Selected provider: {provider.provider_name} "
-                      f"(forced for code editing)")
+                if not self.web_mode:
+                    sys.stderr.write(f"🎯 Selected provider: {provider.provider_name} "
+                                     f"(forced for code editing)\n")
+                    sys.stderr.flush()
                 return provider
             else:
                 raise RuntimeError("OpenRouter required for code editing but not available!")
@@ -158,15 +167,19 @@ class ProviderManager:
                 provider = self.providers[provider_name]
 
                 # Log selection
-                print(f"🎯 Selected provider: {provider.provider_name} "
-                      f"(complexity: {task_complexity})")
+                if not self.web_mode:
+                    sys.stderr.write(f"🎯 Selected provider: {provider.provider_name} "
+                                     f"(complexity: {task_complexity})\n")
+                    sys.stderr.flush()
 
                 return provider
 
         # All providers rate limited - use highest priority available
         # (will hit rate limit but at least tries)
         fallback_provider = list(self.providers.values())[0]
-        print(f"⚠️ All providers rate limited, using fallback: {fallback_provider.provider_name}")
+        if not self.web_mode:
+            sys.stderr.write(f"⚠️ All providers rate limited, using fallback: {fallback_provider.provider_name}\n")
+            sys.stderr.flush()
         return fallback_provider
 
     def handle_rate_limit(self, provider_name: str, error: Exception, task_type: str = None) -> LLMProvider:
@@ -181,7 +194,9 @@ class ProviderManager:
         Returns:
             Next available provider
         """
-        print(f"🚫 Rate limit hit on {provider_name}: {error}")
+        if not self.web_mode:
+            sys.stderr.write(f"🚫 Rate limit hit on {provider_name}: {error}\n")
+            sys.stderr.flush()
 
         # Mark this provider as rate limited (force cooldown)
         if provider_name in self.rate_limits:
@@ -193,9 +208,13 @@ class ProviderManager:
         next_provider = self.get_next_provider(task_type=task_type)
 
         if next_provider.provider_name != provider_name:
-            print(f"🔄 Falling back to: {next_provider.provider_name}")
+            if not self.web_mode:
+                sys.stderr.write(f"🔄 Falling back to: {next_provider.provider_name}\n")
+                sys.stderr.flush()
         else:
-            print("⚠️ No alternative providers available")
+            if not self.web_mode:
+                sys.stderr.write("⚠️ No alternative providers available\n")
+                sys.stderr.flush()
 
         return next_provider
 
@@ -352,7 +371,11 @@ class ProviderManager:
             for provider_name, usage in saved_usage.items():
                 self.usage_tracker[provider_name] = usage
 
-            print(f"✓ Loaded previous state from {self.state_file}")
+            if not self.web_mode:
+                sys.stderr.write(f"✓ Loaded previous state from {self.state_file}\n")
+                sys.stderr.flush()
 
         except Exception as e:
-            print(f"⚠️ Failed to load state: {e}")
+            if not self.web_mode:
+                sys.stderr.write(f"⚠️ Failed to load state: {e}\n")
+                sys.stderr.flush()

@@ -43,7 +43,8 @@ export async function POST(req: NextRequest) {
           env: { 
             ...process.env, 
             PYTHONUNBUFFERED: '1',
-            PYTHONIOENCODING: 'utf-8'  // Force UTF-8 encoding for stdout/stderr
+            PYTHONIOENCODING: 'utf-8',  // Force UTF-8 encoding for stdout/stderr
+            DAAGENT_WEB_MODE: '1'  // Enable web mode for Python process
           }
         });
 

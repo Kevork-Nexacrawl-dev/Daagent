@@ -7,6 +7,8 @@ import importlib
 import inspect
 import json
 import logging
+import sys
+import os
 from pathlib import Path
 from typing import Dict, List, Any, Optional
 
@@ -34,6 +36,7 @@ class ToolRegistry:
         Args:
             tools_dir: Directory to scan for tools (relative to project root)
         """
+        self.web_mode = os.getenv('DAAGENT_WEB_MODE') == '1'
         self.tools_dir = Path(tools_dir)
         self.tools: Dict[str, Dict[str, Any]] = {}
         self._discovered = False
@@ -227,7 +230,9 @@ class ToolRegistry:
             # Get all available modules
             modules = self.warehouse.list_available_modules()
             
-            print(f"📦 Discovered {len(modules)} MCP modules from warehouse")
+            if not self.web_mode:
+                sys.stderr.write(f"📦 Discovered {len(modules)} MCP modules from warehouse\n")
+                sys.stderr.flush()
             
             # Register each module as a tool
             for module_name, module_info in modules.items():
@@ -250,14 +255,20 @@ class ToolRegistry:
                     }
                     
                     tool_count = module_info.get("tools_count", len(module_info.get("tools", [])))
-                    print(f"   🔧 {tool_name}: {tool_count} tools")
+                    if not self.web_mode:
+                        sys.stderr.write(f"   🔧 {tool_name}: {tool_count} tools\n")
+                        sys.stderr.flush()
                 
                 except Exception as e:
-                    print(f"   ⚠️  Failed to register {module_name}: {e}")
+                    if not self.web_mode:
+                        sys.stderr.write(f"   ⚠️  Failed to register {module_name}: {e}\n")
+                        sys.stderr.flush()
         
         except Exception as e:
-            print(f"⚠️  Warehouse discovery failed: {e}")
-            print("   Native tools still available")
+            if not self.web_mode:
+                sys.stderr.write(f"⚠️  Warehouse discovery failed: {e}\n")
+                sys.stderr.write("   Native tools still available\n")
+                sys.stderr.flush()
             import traceback
             traceback.print_exc()
     

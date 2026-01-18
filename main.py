@@ -29,6 +29,15 @@ except ImportError:
 from agent.core import UnifiedAgent
 from agent.config import Config
 
+# Detect web mode
+WEB_MODE = os.getenv('DAAGENT_WEB_MODE') == '1'
+
+def log(message: str):
+    """Log to stderr (not visible in web UI)."""
+    if not WEB_MODE:
+        sys.stderr.write(f"{message}\n")
+        sys.stderr.flush()
+
 console = Console()
 
 # CLI Configuration
@@ -220,7 +229,7 @@ def main():
         # Run query and exit
         response = safe_agent_run(agent, user_query)
         if response:
-            print(response)  # Plain text for API
+            log(response)  # Plain text for API
         sys.exit(0)
 
     parser = argparse.ArgumentParser(

@@ -1,4 +1,5 @@
 import os
+import sys
 from dotenv import load_dotenv
 from enum import Enum
 
@@ -15,6 +16,9 @@ class Config:
     
     # Development mode (uses free models)
     DEV_MODE = os.getenv("DEV_MODE", "true").lower() == "true"
+    
+    # Web mode detection
+    WEB_MODE = os.getenv('DAAGENT_WEB_MODE') == '1'
     
     # Model override (CLI flag)
     OVERRIDE_MODEL = None
@@ -165,6 +169,8 @@ class Config:
         # Print validation info
         provider_obj = cls.get_provider()
         mode = "DEV" if cls.DEV_MODE else "PROD"
-        print(f"✓ Config validated: {mode} mode, Provider: {provider_obj.provider_name}")
-        print(f"  - Conversational: {provider_obj.get_model_name('conversational')}")
-        print(f"  - Code Editing: {provider_obj.get_model_name('code_editing')}")
+        if not cls.WEB_MODE:
+            sys.stderr.write(f"✓ Config validated: {mode} mode, Provider: {provider_obj.provider_name}\n")
+            sys.stderr.write(f"  - Conversational: {provider_obj.get_model_name('conversational')}\n")
+            sys.stderr.write(f"  - Code Editing: {provider_obj.get_model_name('code_editing')}\n")
+            sys.stderr.flush()
