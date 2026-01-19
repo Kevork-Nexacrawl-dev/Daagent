@@ -1,0 +1,80 @@
+{
+  "f3d59319fd1ecfd6": {
+    "doc_id": "f3d59319fd1ecfd6",
+    "filename": "test.txt",
+    "filepath": "C:\\Users\\k\\AppData\\Local\\Temp\\pytest-of-k\\pytest-15\\test_upload_document0\\test.txt",
+    "num_chunks": 1,
+    "uploaded_at": "1768856924.9466531",
+    "metadata": {
+      "title": "Test Doc"
+    }
+  },
+  "b753cd7892a5cc76": {
+    "doc_id": "b753cd7892a5cc76",
+    "filename": "test.txt",
+    "filepath": "C:\\Users\\k\\AppData\\Local\\Temp\\pytest-of-k\\pytest-15\\test_search_documents0\\test.txt",
+    "num_chunks": 1,
+    "uploaded_at": "1768856924.9794607",
+    "metadata": {}
+  },
+  "7d9ed801966f8315": {
+    "doc_id": "7d9ed801966f8315",
+    "filename": "test.txt",
+    "filepath": "C:\\Users\\k\\AppData\\Local\\Temp\\pytest-of-k\\pytest-15\\test_list_documents0\\test.txt",
+    "num_chunks": 1,
+    "uploaded_at": "1768856925.3301055",
+    "metadata": {}
+  },
+  "2c9712feda6dcdfc": {
+    "doc_id": "2c9712feda6dcdfc",
+    "filename": "test.txt",
+    "filepath": "C:\\Users\\k\\AppData\\Local\\Temp\\pytest-of-k\\pytest-16\\test_search_documents0\\test.txt",
+    "num_chunks": 1,
+    "uploaded_at": "1768856950.9159184",
+    "metadata": {}
+  },
+  "bf8296e2a03e4c3d": {
+    "doc_id": "bf8296e2a03e4c3d",
+    "filename": "test.txt",
+    "filepath": "C:\\Users\\k\\AppData\\Local\\Temp\\pytest-of-k\\pytest-17\\test_upload_document0\\test.txt",
+    "num_chunks": 1,
+    "uploaded_at": "1768856957.5677547",
+    "metadata": {
+      "title": "Test Doc"
+    }
+  },
+  "e0baed6e4a8a31f8": {
+    "doc_id": "e0baed6e4a8a31f8",
+    "filename": "test.txt",
+    "filepath": "C:\\Users\\k\\AppData\\Local\\Temp\\pytest-of-k\\pytest-17\\test_search_documents0\\test.txt",
+    "num_chunks": 1,
+    "uploaded_at": "1768856957.5982358",
+    "metadata": {}
+  },
+  "825e5a411c3e38f8": {
+    "doc_id": "825e5a411c3e38f8",
+    "filename": "test.txt",
+    "filepath": "C:\\Users\\k\\AppData\\Local\\Temp\\pytest-of-k\\pytest-17\\test_list_documents0\\test.txt",
+    "num_chunks": 1,
+    "uploaded_at": "1768856958.0322864",
+    "metadata": {}
+  },
+  "1150ded6ea828d25": {
+    "doc_id": "1150ded6ea828d25",
+    "filename": "test.txt",
+    "filepath": "C:\\Users\\k\\AppData\\Local\\Temp\\pytest-of-k\\pytest-20\\test_upload_document0\\test.txt",
+    "num_chunks": 1,
+    "uploaded_at": "1768857012.8539498",
+    "metadata": {
+      "title": "Test Doc"
+    }
+  },
+  "1e9441e0064621fb": {
+    "doc_id": "1e9441e0064621fb",
+    "filename": "test.txt",
+    "filepath": "C:\\Users\\k\\AppData\\Local\\Temp\\pytest-of-k\\pytest-20\\test_list_documents0\\test.txt",
+    "num_chunks": 1,
+    "uploaded_at": "1768857012.9006667",
+    "metadata": {}
+  }
+}

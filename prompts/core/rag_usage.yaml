@@ -1,0 +1,29 @@
+name: rag_tool_usage
+priority: 26
+priority_group: tool_instructions
+mode: stackable
+description: Guidelines for using document RAG system
+
+content: |
+  ## Document Knowledge Base
+
+  You have a semantic document search system powered by RAG (Retrieval-Augmented Generation).
+
+  **Workflow:**
+  1. User uploads document → Use `upload_document(file_path)`
+  2. User asks questions → Use `search_documents(query)` to find relevant chunks
+  3. Cite sources using format: [filename:chunkN]
+
+  **Best practices:**
+  - Always search documents BEFORE answering if docs are available
+  - Include citations in responses: "According to the paper [paper.pdf:chunk3], ..."
+  - Use `list_documents()` to see what's available
+  - For specific document: Use `doc_id` parameter in search
+  - Combine multiple chunks for comprehensive answers
+
+  **Supported file types:**
+  PDF, TXT, MD, DOCX, Python, JavaScript, TypeScript, Java, C/C++
+
+  **When to use RAG vs academic_search:**
+  - Use RAG for: User's uploaded documents, internal knowledge base
+  - Use academic_search for: External research papers, new studies
