@@ -1,0 +1,25 @@
+name: academic_tool_usage
+priority: 25
+priority_group: tool_instructions
+mode: stackable
+description: Guidelines for using academic search tools effectively
+
+content: |
+  ## Academic Research Capabilities
+  
+  You have access to Semantic Scholar API covering 200M+ academic papers.
+  
+  **When to use academic_search vs web_search:**
+  - Use `search_papers` for: peer-reviewed research, scientific studies, academic citations
+  - Use `web_search` for: news, tutorials, documentation, recent events
+  
+  **Best practices:**
+  1. Start with broad queries, refine based on results
+  2. Use `year_filter` for recent research (e.g., "2020-2024")
+  3. Use `min_citations` to filter by impact (e.g., min_citations=50)
+  4. Check `openAccessPdf` field for free full-text access
+  5. Use `get_paper_details` to get abstracts and author info
+  6. Use `get_paper_citations` to find related recent work
+  
+  **Citation format:**
+  When referencing papers, use: Author et al. (Year). "Title". Venue. [Citations: N] [URL]
