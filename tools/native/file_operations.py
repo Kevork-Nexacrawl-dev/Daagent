@@ -14,6 +14,7 @@ import shutil
 import glob
 import zipfile
 import tarfile
+import re
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Union, Tuple
 from io import BytesIO
@@ -1588,6 +1589,175 @@ class FileOperationsTool:
         except Exception as e:
             return {'success': False, 'error': f'{type(e).__name__}: {str(e)}'}
 
+    def search_file_contents(self, file_path: str, pattern: str, case_sensitive: bool = False,
+                           max_results: int = 50, context_lines: int = 2) -> Dict[str, Any]:
+        """
+        Search file contents using regex patterns with context.
+
+        Args:
+            file_path: Path to file to search
+            pattern: Regex pattern to search for
+            case_sensitive: Whether search is case sensitive
+            max_results: Maximum number of matches to return
+            context_lines: Number of context lines around each match
+
+        Returns:
+            Dict with search results
+        """
+        try:
+            path = Path(file_path)
+            if not path.exists():
+                return {'success': False, 'error': f'File not found: {file_path}'}
+
+            if not path.is_file():
+                return {'success': False, 'error': f'Path is not a file: {file_path}'}
+
+            # Read file content
+            try:
+                with open(path, 'r', encoding='utf-8') as f:
+                    lines = f.readlines()
+            except UnicodeDecodeError:
+                return {'success': False, 'error': f'File encoding not supported: {file_path}'}
+
+            # Compile regex pattern
+            flags = 0 if case_sensitive else re.IGNORECASE
+            try:
+                regex = re.compile(pattern, flags)
+            except re.error as e:
+                return {'success': False, 'error': f'Invalid regex pattern: {e}'}
+
+            matches = []
+            for line_num, line in enumerate(lines, 1):
+                if regex.search(line):
+                    # Get context lines
+                    start_ctx = max(1, line_num - context_lines)
+                    end_ctx = min(len(lines), line_num + context_lines)
+
+                    context = []
+                    for ctx_line_num in range(start_ctx, end_ctx + 1):
+                        marker = '>>>' if ctx_line_num == line_num else '   '
+                        context.append(f'{marker} {ctx_line_num:4d}: {lines[ctx_line_num-1].rstrip()}')
+
+                    matches.append({
+                        'line_number': line_num,
+                        'matched_line': line.rstrip(),
+                        'context': context
+                    })
+
+                    if len(matches) >= max_results:
+                        break
+
+            return {
+                'success': True,
+                'file_path': str(path.absolute()),
+                'pattern': pattern,
+                'case_sensitive': case_sensitive,
+                'total_matches': len(matches),
+                'max_results': max_results,
+                'matches': matches,
+                'message': f'Found {len(matches)} matches'
+            }
+
+        except Exception as e:
+            return {'success': False, 'error': f'{type(e).__name__}: {str(e)}'}
+
+    def search_and_replace(self, file_path: str, old_string: str, new_string: str,
+                          dry_run: bool = True, backup: bool = True) -> Dict[str, Any]:
+        """
+        Search and replace content in file with diff preview.
+
+        Args:
+            file_path: Path to file to modify
+            old_string: Exact string to replace
+            new_string: Replacement string
+            dry_run: If True, only show diff without modifying file
+            backup: If True, create backup before modification
+
+        Returns:
+            Dict with operation results and diff
+        """
+        try:
+            import difflib
+
+            path = Path(file_path)
+            if not path.exists():
+                return {'success': False, 'error': f'File not found: {file_path}'}
+
+            if not path.is_file():
+                return {'success': False, 'error': f'Path is not a file: {file_path}'}
+
+            # Read original content
+            try:
+                with open(path, 'r', encoding='utf-8') as f:
+                    original_content = f.read()
+            except UnicodeDecodeError:
+                return {'success': False, 'error': f'File encoding not supported: {file_path}'}
+
+            # Check if old_string exists
+            if old_string not in original_content:
+                return {'success': False, 'error': f'Old string not found in file: {file_path}'}
+
+            # Count occurrences
+            occurrences = original_content.count(old_string)
+
+            # Generate new content
+            new_content = original_content.replace(old_string, new_string, 1)  # Replace only first occurrence
+
+            # Generate diff
+            diff = list(difflib.unified_diff(
+                original_content.splitlines(keepends=True),
+                new_content.splitlines(keepends=True),
+                fromfile=f'a/{path.name}',
+                tofile=f'b/{path.name}',
+                lineterm=''
+            ))
+
+            if dry_run:
+                return {
+                    'success': True,
+                    'dry_run': True,
+                    'file_path': str(path.absolute()),
+                    'occurrences_found': occurrences,
+                    'will_replace_first': True,
+                    'diff': diff,
+                    'message': f'Dry run: Would replace 1 occurrence of old string'
+                }
+
+            # Create backup if requested
+            backup_path = None
+            if backup:
+                backup_path = path.with_suffix(path.suffix + '.backup')
+                try:
+                    import shutil
+                    shutil.copy2(path, backup_path)
+                except Exception as e:
+                    return {'success': False, 'error': f'Failed to create backup: {e}'}
+
+            # Write new content
+            try:
+                with open(path, 'w', encoding='utf-8') as f:
+                    f.write(new_content)
+            except Exception as e:
+                # Restore backup if write failed
+                if backup_path and backup_path.exists():
+                    import shutil
+                    shutil.copy2(backup_path, path)
+                return {'success': False, 'error': f'Failed to write file: {e}'}
+
+            return {
+                'success': True,
+                'dry_run': False,
+                'file_path': str(path.absolute()),
+                'backup_created': str(backup_path) if backup_path else None,
+                'occurrences_replaced': 1,
+                'total_occurrences': occurrences,
+                'diff': diff,
+                'message': f'Successfully replaced 1 occurrence'
+            }
+
+        except Exception as e:
+            return {'success': False, 'error': f'{type(e).__name__}: {str(e)}'}
+
 
 # ============================================
 # TOOL REGISTRATION (for agent/core.py to discover)
@@ -1932,6 +2102,43 @@ TOOL_SCHEMAS = [
         }
     },
 
+    {
+        "type": "function",
+        "function": {
+            "name": "search_file_contents",
+            "description": "Search file contents using regex patterns with context",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_path": {"type": "string", "description": "Path to file to search"},
+                    "pattern": {"type": "string", "description": "Regex pattern to search for"},
+                    "case_sensitive": {"type": "boolean", "default": False, "description": "Whether search is case sensitive"},
+                    "max_results": {"type": "integer", "default": 50, "description": "Maximum number of matches to return"},
+                    "context_lines": {"type": "integer", "default": 2, "description": "Number of context lines around each match"}
+                },
+                "required": ["file_path", "pattern"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_and_replace",
+            "description": "Search and replace content in file with diff preview",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "file_path": {"type": "string", "description": "Path to file to modify"},
+                    "old_string": {"type": "string", "description": "Exact string to replace"},
+                    "new_string": {"type": "string", "description": "Replacement string"},
+                    "dry_run": {"type": "boolean", "default": True, "description": "If true, only show diff without modifying file"},
+                    "backup": {"type": "boolean", "default": True, "description": "If true, create backup before modification"}
+                },
+                "required": ["file_path", "old_string", "new_string"]
+            }
+        }
+    },
+
     # Tier 5: Bulk Operations
     {
         "type": "function",
@@ -2060,6 +2267,8 @@ def execute_tool(operation: str, **kwargs) -> str:
         "count_lines_of_code": tool.count_lines_of_code,
         "validate_json_file": tool.validate_json_file,
         "validate_yaml_file": tool.validate_yaml_file,
+        "search_file_contents": tool.search_file_contents,
+        "search_and_replace": tool.search_and_replace,
 
         # Tier 5: Bulk Operations
         "batch_rename": tool.batch_rename,
