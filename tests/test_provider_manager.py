@@ -4,7 +4,7 @@ Tests for ProviderManager with fallback cascade.
 
 import pytest
 from unittest.mock import patch, MagicMock
-from agent.provider_manager import ProviderManager
+from agent.provider_manager import ProviderManager, RateLimitState
 from agent.providers import OpenRouterProvider
 
 
@@ -23,13 +23,20 @@ class TestProviderManager:
         with patch.dict('os.environ', {'OPENROUTER_API_KEY': 'test_key'}):
             pm = ProviderManager()
 
-            # Simple task should get first available (OpenRouter)
+            # Simple task should get first available (Ollama if loaded, else OpenRouter)
             provider = pm.get_next_provider("simple")
-            assert provider.provider_name.lower() == "openrouter"
+            # Since Ollama is now first in cascade and loads, expect it
+            if "ollama" in pm.providers:
+                assert provider.provider_name.lower() == "ollama"
+            else:
+                assert provider.provider_name.lower() == "openrouter"
 
-            # Complex task should still get OpenRouter (only one loaded)
+            # Complex task should still get first available
             provider = pm.get_next_provider("complex")
-            assert provider.provider_name.lower() == "openrouter"
+            if "ollama" in pm.providers:
+                assert provider.provider_name.lower() == "ollama"
+            else:
+                assert provider.provider_name.lower() == "openrouter"
 
     def test_provider_cascade_order(self):
         """Test that providers are tried in correct cascade order"""

@@ -233,7 +233,7 @@ def main():
         sys.exit(0)
 
     parser = argparse.ArgumentParser(
-        description="Daagent - General-purpose AI Agent",
+        description="Daagent - General-purpose AI Agent with Ollama support",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
@@ -242,6 +242,7 @@ Examples:
   python main.py --dev-mode               # Force dev mode
   python main.py --model grok-4-fast      # Use specific model
   python main.py --provider huggingface   # Use HuggingFace provider
+  python main.py --provider ollama        # Use Ollama provider
         """
     )
 
@@ -268,8 +269,13 @@ Examples:
     parser.add_argument(
         "--provider",
         type=str,
-        choices=["openrouter", "huggingface", "together"],
+        choices=["openrouter", "huggingface", "together", "ollama"],
         help="Override API provider (default: from .env PROVIDER setting)"
+    )
+    parser.add_argument(
+        "--ollama-model",
+        type=str,
+        help="Override default Ollama model (default: from .env OLLAMA_MODEL_DEFAULT)"
     )
     parser.add_argument(
         "--max-iterations",
@@ -337,6 +343,8 @@ Examples:
         Config.OVERRIDE_MODEL = model_mapping.get(args.model, args.model)
     if args.provider:
         Config.OVERRIDE_PROVIDER = args.provider
+    if args.ollama_model:
+        Config.OLLAMA_MODEL_DEFAULT = args.ollama_model
     if args.max_iterations:
         Config.MAX_ITERATIONS = args.max_iterations
     if args.no_mcp:

@@ -144,11 +144,57 @@ class GrokProvider(LLMProvider):
         return "Grok Premium"
 
 
+class OllamaProvider(LLMProvider):
+    """Local Ollama provider"""
+    def __init__(self, api_key: str = None):
+        from agent.config import Config
+        self.api_key = api_key or ""
+        self.base_url = f"{Config.OLLAMA_HOST}/v1"
+        self.models = {
+            "conversational": Config.OLLAMA_MODEL_DEFAULT,
+            "code_editing": Config.OLLAMA_MODEL_DEFAULT
+        }
+
+    def get_client(self) -> OpenAI:
+        return OpenAI(api_key=self.api_key, base_url=self.base_url)
+
+    def get_model_name(self, task_type: str) -> str:
+        from agent.config import Config
+        if Config.OVERRIDE_MODEL:
+            return Config.OVERRIDE_MODEL
+        return self.models.get(task_type, self.models["conversational"])
+
+    def chat(self, messages: list, model: str = None, stream: bool = False) -> Any:
+        """Chat completion using Ollama via OpenAI API"""
+        client = self.get_client()
+        model = model or self.get_model_name("conversational")
+        return client.chat.completions.create(
+            model=model,
+            messages=messages,
+            stream=stream
+        )
+
+    def generate(self, prompt: str, model: str = None, stream: bool = False) -> Any:
+        """Text generation using Ollama via OpenAI API"""
+        client = self.get_client()
+        model = model or self.get_model_name("conversational")
+        return client.completions.create(
+            model=model,
+            prompt=prompt,
+            stream=stream
+        )
+
+    @property
+    def provider_name(self) -> str:
+        return "Ollama"
+
+
 # Provider registry
 PROVIDERS = {
     "openrouter": OpenRouterProvider,
     "huggingface": HuggingFaceProvider,
     "together": TogetherProvider,
     "gemini": GeminiProvider,
-    "grok": GrokProvider
+    "grok": GrokProvider,
+    "ollama": OllamaProvider
 }

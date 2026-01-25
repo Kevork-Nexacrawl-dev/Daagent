@@ -57,6 +57,10 @@ class Config:
     ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
     ANTHROPIC_MODEL = "claude-3-5-sonnet-20241022"
     
+    # Ollama settings
+    OLLAMA_HOST = os.getenv("OLLAMA_HOST", "http://localhost:11434")
+    OLLAMA_MODEL_DEFAULT = os.getenv("OLLAMA_MODEL_DEFAULT", "llama3.2:latest")
+    
     # Agent behavior
     # MAX_ITERATIONS: Controls ReAct loop depth
     # - 10: Simple QA and basic tasks
@@ -138,10 +142,12 @@ class Config:
             api_key = cls.GEMINI_API_KEY
         elif provider_name == "grok":
             api_key = cls.GROK_API_KEY
+        elif provider_name == "ollama":
+            api_key = ""  # No API key needed for local Ollama
         else:
             raise ValueError(f"No API key configured for {provider_name}")
         
-        if not api_key:
+        if not api_key and provider_name != "ollama":
             raise ValueError(f"{provider_name.upper()}_API_KEY not found in .env")
         
         return provider_class(api_key)
@@ -151,7 +157,7 @@ class Config:
         """Enhanced validation with provider check"""
         provider = cls.OVERRIDE_PROVIDER or cls.PROVIDER
         
-        if provider not in ["openrouter", "huggingface", "together", "gemini", "grok"]:
+        if provider not in ["openrouter", "huggingface", "together", "gemini", "grok", "ollama"]:
             raise ValueError(f"Invalid PROVIDER: {provider}")
         
         # Check that provider's API key exists
@@ -165,6 +171,7 @@ class Config:
             raise ValueError("GEMINI_API_KEY not found in .env")
         elif provider == "grok" and not cls.GROK_API_KEY:
             raise ValueError("GROK_API_KEY not found in .env")
+        # Ollama doesn't require API key
         
         # Print validation info
         provider_obj = cls.get_provider()

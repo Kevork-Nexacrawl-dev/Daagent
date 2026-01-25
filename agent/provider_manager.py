@@ -45,14 +45,16 @@ class ProviderManager:
     Manages provider selection with intelligent fallback cascade.
 
     Provider Priority Order:
-    1. OpenRouter Free (nex-agi/deepseek-v3.1-nex-n1:free) - 20/min
-    2. HuggingFace (meta-llama/Llama-3.3-70B-Instruct) - ~100/hour
-    3. Google Gemini (gemini-2.0-flash-exp) - 60/min free
-    4. Grok Premium (x-ai/grok-4-fast) - Paid fallback
+    1. Ollama (local) - Unlimited local access
+    2. OpenRouter Free (nex-agi/deepseek-v3.1-nex-n1:free) - 20/min
+    3. HuggingFace (meta-llama/Llama-3.3-70B-Instruct) - ~100/hour
+    4. Google Gemini (gemini-2.0-flash-exp) - 60/min free
+    5. Grok Premium (x-ai/grok-4-fast) - Paid fallback
     """
 
     # Provider cascade order with limits
     PROVIDER_CASCADE = {
+        "ollama": ProviderLimits(requests_per_minute=1000, requests_per_hour=10000),  # Local, high limits
         "openrouter": ProviderLimits(requests_per_minute=20, requests_per_hour=100),
         "huggingface": ProviderLimits(requests_per_minute=60, requests_per_hour=100),
         "gemini": ProviderLimits(requests_per_minute=60, requests_per_hour=1000),
@@ -61,7 +63,8 @@ class ProviderManager:
 
     # Cost estimates per 1K tokens (approximate)
     COST_ESTIMATES = {
-        "openrouter": 0.0,  # Free
+        "ollama": 0.0,       # Local, no cost
+        "openrouter": 0.0,   # Free
         "huggingface": 0.0,  # Free tier
         "gemini": 0.0,       # Free tier
         "grok": 0.001,       # ~$1 per 1M tokens
@@ -123,6 +126,7 @@ class ProviderManager:
     def _get_api_key(self, provider_name: str) -> Optional[str]:
         """Get API key for provider"""
         key_map = {
+            "ollama": "local",  # Local provider, no real API key needed
             "openrouter": Config.OPENROUTER_API_KEY,
             "huggingface": Config.HUGGINGFACE_API_KEY,
             "gemini": getattr(Config, 'GEMINI_API_KEY', None),

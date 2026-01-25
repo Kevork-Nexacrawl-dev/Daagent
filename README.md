@@ -182,6 +182,82 @@ You: /session info analysis_session
 You: /session cleanup
 ```
 
+## 🏠 Using Ollama as Local Provider
+
+### Prerequisites
+
+To use Ollama as a local LLM provider, you need to:
+
+1. **Install Ollama**: Download and install Ollama from [ollama.ai](https://ollama.ai). Follow the installation instructions for your operating system.
+
+2. **Pull a Model**: After installation, pull a model you want to use, e.g., Llama 2 or Mistral:
+   ```bash
+   ollama pull llama2
+   ```
+
+3. **Start the Ollama Server**: Run the Ollama server in the background:
+   ```bash
+   ollama serve
+   ```
+
+### Configuration
+
+Set the following environment variables in your `.env` file:
+
+```bash
+# Set provider to ollama
+PROVIDER=ollama
+
+# Specify the model name (must match what you pulled)
+OLLAMA_MODEL=llama2
+
+# Optional: Set the Ollama API base URL (default is http://localhost:11434)
+OLLAMA_BASE_URL=http://localhost:11434
+```
+
+### Usage Examples
+
+Once configured, use Daagent with Ollama just like other providers:
+
+```bash
+# Interactive mode with Ollama
+python main.py
+
+# Single query
+python main.py "Summarize this text: [your text]"
+
+# Force Ollama provider
+python main.py --provider ollama "Generate a Python function for data analysis"
+```
+
+### Benefits of Local LLMs
+
+- **Privacy**: All data stays on your local machine
+- **Cost**: No API costs or rate limits
+- **Offline**: Works without internet connection
+- **Customization**: Fine-tune models for specific tasks
+- **Speed**: Lower latency for local inference
+
+### Troubleshooting
+
+**"Connection refused" error**
+- Ensure Ollama server is running: `ollama serve`
+- Check if the model is pulled: `ollama list`
+- Verify OLLAMA_BASE_URL in .env
+
+**"Model not found" error**
+- Pull the model first: `ollama pull <model_name>`
+- Confirm the model name in OLLAMA_MODEL matches
+
+**Slow performance**
+- Use smaller models for faster inference
+- Ensure sufficient RAM (models need 4-16GB+)
+- Close other resource-intensive applications
+
+**Permission issues on Windows/Linux**
+- Run Ollama with appropriate permissions
+- Check firewall settings for local connections
+
 ## 🔍 Advanced Usage
 
 ### Model Selection
