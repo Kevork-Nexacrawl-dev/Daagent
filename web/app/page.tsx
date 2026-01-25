@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, memo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
-import { Send, Bot, User, Wrench, Loader2 } from 'lucide-react';
+import { Send, Bot, User, Wrench, Loader2, MessageSquare } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeRaw from 'rehype-raw';
@@ -32,6 +32,242 @@ interface ToolCall {
   result?: string;
 }
 
+const MAX_MESSAGES_DISPLAY = 50;
+
+// Memoized User Message Component
+const UserMessage = memo(({ content }: { content: string }) => (
+  <div className="flex gap-4">
+    <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
+      <User className="w-5 h-5" />
+    </div>
+    <div className="flex-1">
+      <p className="text-white whitespace-pre-wrap">{content}</p>
+    </div>
+  </div>
+));
+UserMessage.displayName = 'UserMessage';
+
+// Memoized Assistant Message Component
+const AssistantMessage = memo(({
+  content,
+  toolCalls
+}: {
+  content: string;
+  toolCalls?: ToolCall[]
+}) => (
+  <div className="flex gap-4">
+    <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center flex-shrink-0">
+      <Bot className="w-5 h-5" />
+    </div>
+    <div className="flex-1 space-y-3">
+      <div className="prose prose-invert max-w-none">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={{
+            code(props) {
+              const { className, children, ...rest } = props;
+              const match = /language-(\w+)/.exec(className || '');
+              const language = match ? match[1] : '';
+              const isInline = !className?.includes('language-');
+
+              if (isInline) {
+                return (
+                  <code className="px-1.5 py-0.5 bg-gray-800 rounded text-sm font-mono text-blue-400" {...rest}>
+                    {children || ''}
+                  </code>
+                );
+              } else {
+                return (
+                  <CodeBlock language={language} className={className}>
+                    {String(children || '').replace(/\n$/, '')}
+                  </CodeBlock>
+                );
+              }
+            },
+            a(props) {
+              const { href, children } = props;
+              return (
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-400 hover:text-blue-300 underline"
+                >
+                  {children || ''}
+                </a>
+              );
+            },
+            p(props) {
+              const { children } = props;
+              return <p className="text-white mb-4 last:mb-0">{children || ''}</p>;
+            },
+            ul(props) {
+              const { children } = props;
+              return <ul className="list-disc list-inside text-white mb-4 space-y-1">{children || ''}</ul>;
+            },
+            ol(props) {
+              const { children } = props;
+              return <ol className="list-decimal list-inside text-white mb-4 space-y-1">{children || ''}</ol>;
+            },
+            h1(props) {
+              const { children } = props;
+              return <h1 className="text-2xl font-bold text-white mb-4 mt-6">{children || ''}</h1>;
+            },
+            h2(props) {
+              const { children } = props;
+              return <h2 className="text-xl font-bold text-white mb-3 mt-5">{children || ''}</h2>;
+            },
+            h3(props) {
+              const { children } = props;
+              return <h3 className="text-lg font-bold text-white mb-2 mt-4">{children || ''}</h3>;
+            },
+            blockquote(props) {
+              const { children } = props;
+              return (
+                <blockquote className="border-l-4 border-gray-600 pl-4 italic text-gray-300 my-4">
+                  {children || ''}
+                </blockquote>
+              );
+            },
+            table(props) {
+              const { children } = props;
+              return (
+                <div className="overflow-x-auto my-4">
+                  <table className="min-w-full border border-gray-700">{children || ''}</table>
+                </div>
+              );
+            },
+            th(props) {
+              const { children } = props;
+              return (
+                <th className="border border-gray-700 px-4 py-2 bg-gray-800 text-left text-white font-semibold">
+                  {children || ''}
+                </th>
+              );
+            },
+            td(props) {
+              const { children } = props;
+              return (
+                <td className="border border-gray-700 px-4 py-2 text-gray-300">
+                  {children || ''}
+                </td>
+              );
+            },
+          }}
+        >
+          {content}
+        </ReactMarkdown>
+      </div>
+      {toolCalls && toolCalls.length > 0 && (
+        <div className="space-y-2">
+          {toolCalls.map((tool, toolIdx) => (
+            <Card key={toolIdx} className="p-3 bg-gray-900 border-gray-800">
+              <div className="flex items-start gap-2">
+                <Wrench className="w-4 h-4 text-yellow-500 mt-1" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-yellow-500">
+                    {tool.name}
+                  </p>
+                  <p className="text-xs text-gray-400 mt-1">
+                    {JSON.stringify(tool.args, null, 2)}
+                  </p>
+                  {tool.result && (
+                    <p className="text-xs text-gray-300 mt-2 bg-gray-950 p-2 rounded">
+                      {tool.result.slice(0, 200)}
+                      {tool.result.length > 200 ? '...' : ''}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  </div>
+));
+AssistantMessage.displayName = 'AssistantMessage';
+
+// Memoized Streaming Response Component
+const StreamingResponse = memo(({ content }: { content: string }) => (
+  <div className="flex gap-4">
+    <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center flex-shrink-0">
+      <Bot className="w-5 h-5" />
+    </div>
+    <div className="flex-1">
+      <div className="prose prose-invert max-w-none">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={{
+            code(props) {
+              const { className, children, ...rest } = props;
+              const isInline = !className?.includes('language-');
+              return isInline ? (
+                <code className="px-1.5 py-0.5 bg-gray-800 rounded text-sm font-mono text-blue-400" {...rest}>
+                  {children || ''}
+                </code>
+              ) : (
+                <pre className="bg-gray-950 p-4 rounded-lg overflow-x-auto">
+                  <code className="text-sm font-mono text-gray-100">{children || ''}</code>
+                </pre>
+              );
+            },
+            p(props) {
+              const { children } = props;
+              return <p className="text-white mb-2 last:mb-0">{children || ''}</p>;
+            },
+            a(props) {
+              const { href, children } = props;
+              return (
+                <a
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-400 hover:text-blue-300 underline"
+                >
+                  {children || ''}
+                </a>
+              );
+            },
+            ul(props) {
+              const { children } = props;
+              return <ul className="list-disc list-inside text-white mb-4 space-y-1">{children || ''}</ul>;
+            },
+            ol(props) {
+              const { children } = props;
+              return <ol className="list-decimal list-inside text-white mb-4 space-y-1">{children || ''}</ol>;
+            },
+            h1(props) {
+              const { children } = props;
+              return <h1 className="text-2xl font-bold text-white mb-4 mt-6">{children || ''}</h1>;
+            },
+            h2(props) {
+              const { children } = props;
+              return <h2 className="text-xl font-bold text-white mb-3 mt-5">{children || ''}</h2>;
+            },
+            h3(props) {
+              const { children } = props;
+              return <h3 className="text-lg font-bold text-white mb-2 mt-4">{children || ''}</h3>;
+            },
+            blockquote(props) {
+              const { children } = props;
+              return (
+                <blockquote className="border-l-4 border-gray-600 pl-4 italic text-gray-300 my-4">
+                  {children || ''}
+                </blockquote>
+              );
+            },
+          }}
+        >
+          {content}
+        </ReactMarkdown>
+      </div>
+      <span className="inline-block w-1 h-4 bg-white animate-pulse ml-1" />
+    </div>
+  </div>
+));
+StreamingResponse.displayName = 'StreamingResponse';
+
 export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
@@ -42,6 +278,16 @@ export default function ChatPage() {
   const [activeModel, setActiveModel] = useState<string>('Auto (Smart)');
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  // SSE connection cleanup
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+    };
+  }, []);
 
   // Auto-scroll to bottom when messages change
   useEffect(() => {
@@ -53,12 +299,20 @@ export default function ChatPage() {
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
 
+    // Abort any existing request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
     const userMessage: Message = { role: 'user', content: input };
     setMessages((prev) => [...prev, userMessage]);
     setInput('');
     setIsLoading(true);
     setCurrentResponse('');
     setCurrentToolCalls([]);
+
+    // Create new abort controller for this request
+    abortControllerRef.current = new AbortController();
 
     // Collect streaming data in local variables
     let streamedResponse = '';
@@ -72,6 +326,7 @@ export default function ChatPage() {
           messages: [...messages, userMessage],
           selectedModel: selectedModel  // ADD THIS LINE
         }),
+        signal: abortControllerRef.current.signal,
       });
 
       if (!response.body) {
@@ -119,9 +374,11 @@ export default function ChatPage() {
                 setCurrentResponse('');
                 setCurrentToolCalls([]);
                 setIsLoading(false);
+                abortControllerRef.current = null;
               } else if (event.type === 'error') {
                 console.error('Stream error:', event.message);
                 setIsLoading(false);
+                abortControllerRef.current = null;
               }
             } catch (e) {
               console.error('Failed to parse SSE event:', e);
@@ -130,8 +387,13 @@ export default function ChatPage() {
         }
       }
     } catch (error) {
-      console.error('Chat error:', error);
-      setIsLoading(false);
+      if (error instanceof Error && error.name === 'AbortError') {
+        console.log('Request was aborted');
+      } else {
+        console.error('Chat error:', error);
+        setIsLoading(false);
+      }
+      abortControllerRef.current = null;
     }
   };
 
@@ -212,230 +474,30 @@ export default function ChatPage() {
             </div>
           )}
 
-          {messages.map((message, idx) => (
-            <div key={idx} className="flex gap-4">
+          {/* Conversation truncation indicator */}
+          {messages.length > MAX_MESSAGES_DISPLAY && (
+            <div className="text-center py-2">
+              <div className="inline-flex items-center gap-2 px-3 py-1 bg-gray-800 rounded-full text-xs text-gray-400">
+                <MessageSquare className="w-3 h-3" />
+                Showing last {MAX_MESSAGES_DISPLAY} of {messages.length} messages
+              </div>
+            </div>
+          )}
+
+          {/* Display only the last MAX_MESSAGES_DISPLAY messages */}
+          {messages.slice(-MAX_MESSAGES_DISPLAY).map((message, idx) => (
+            <div key={messages.length - MAX_MESSAGES_DISPLAY + idx}>
               {message.role === 'user' ? (
-                <>
-                  <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center flex-shrink-0">
-                    <User className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1">
-                    <p className="text-white whitespace-pre-wrap">{message.content}</p>
-                  </div>
-                </>
+                <UserMessage content={message.content} />
               ) : (
-                <>
-                  <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center flex-shrink-0">
-                    <Bot className="w-5 h-5" />
-                  </div>
-                  <div className="flex-1 space-y-3">
-                    <div className="prose prose-invert max-w-none">
-                      <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        components={{
-                          code(props) {
-                            const { className, children, ...rest } = props;
-                            const match = /language-(\w+)/.exec(className || '');
-                            const language = match ? match[1] : '';
-                            const isInline = !className?.includes('language-');
-                            
-                            if (isInline) {
-                              return (
-                                <code className="px-1.5 py-0.5 bg-gray-800 rounded text-sm font-mono text-blue-400" {...rest}>
-                                  {children || ''}
-                                </code>
-                              );
-                            } else {
-                              return (
-                                <CodeBlock language={language} className={className}>
-                                  {String(children || '').replace(/\n$/, '')}
-                                </CodeBlock>
-                              );
-                            }
-                          },
-                          a(props) {
-                            const { href, children } = props;
-                            return (
-                              <a
-                                href={href}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-blue-400 hover:text-blue-300 underline"
-                              >
-                                {children || ''}
-                              </a>
-                            );
-                          },
-                          p(props) {
-                            const { children } = props;
-                            return <p className="text-white mb-4 last:mb-0">{children || ''}</p>;
-                          },
-                          ul(props) {
-                            const { children } = props;
-                            return <ul className="list-disc list-inside text-white mb-4 space-y-1">{children || ''}</ul>;
-                          },
-                          ol(props) {
-                            const { children } = props;
-                            return <ol className="list-decimal list-inside text-white mb-4 space-y-1">{children || ''}</ol>;
-                          },
-                          h1(props) {
-                            const { children } = props;
-                            return <h1 className="text-2xl font-bold text-white mb-4 mt-6">{children || ''}</h1>;
-                          },
-                          h2(props) {
-                            const { children } = props;
-                            return <h2 className="text-xl font-bold text-white mb-3 mt-5">{children || ''}</h2>;
-                          },
-                          h3(props) {
-                            const { children } = props;
-                            return <h3 className="text-lg font-bold text-white mb-2 mt-4">{children || ''}</h3>;
-                          },
-                          blockquote(props) {
-                            const { children } = props;
-                            return (
-                              <blockquote className="border-l-4 border-gray-600 pl-4 italic text-gray-300 my-4">
-                                {children || ''}
-                              </blockquote>
-                            );
-                          },
-                          table(props) {
-                            const { children } = props;
-                            return (
-                              <div className="overflow-x-auto my-4">
-                                <table className="min-w-full border border-gray-700">{children || ''}</table>
-                              </div>
-                            );
-                          },
-                          th(props) {
-                            const { children } = props;
-                            return (
-                              <th className="border border-gray-700 px-4 py-2 bg-gray-800 text-left text-white font-semibold">
-                                {children || ''}
-                              </th>
-                            );
-                          },
-                          td(props) {
-                            const { children } = props;
-                            return (
-                              <td className="border border-gray-700 px-4 py-2 text-gray-300">
-                                {children || ''}
-                              </td>
-                            );
-                          },
-                        }}
-                      >
-                        {message.content}
-                      </ReactMarkdown>
-                    </div>
-                    {message.toolCalls && message.toolCalls.length > 0 && (
-                      <div className="space-y-2">
-                        {message.toolCalls.map((tool, toolIdx) => (
-                          <Card key={toolIdx} className="p-3 bg-gray-900 border-gray-800">
-                            <div className="flex items-start gap-2">
-                              <Wrench className="w-4 h-4 text-yellow-500 mt-1" />
-                              <div className="flex-1">
-                                <p className="text-sm font-semibold text-yellow-500">
-                                  {tool.name}
-                                </p>
-                                <p className="text-xs text-gray-400 mt-1">
-                                  {JSON.stringify(tool.args, null, 2)}
-                                </p>
-                                {tool.result && (
-                                  <p className="text-xs text-gray-300 mt-2 bg-gray-950 p-2 rounded">
-                                    {tool.result.slice(0, 200)}
-                                    {tool.result.length > 200 ? '...' : ''}
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          </Card>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </>
+                <AssistantMessage content={message.content} toolCalls={message.toolCalls} />
               )}
             </div>
           ))}
 
           {/* Current streaming response */}
           {isLoading && currentResponse && (
-            <div className="flex gap-4">
-              <div className="w-8 h-8 rounded-full bg-green-600 flex items-center justify-center flex-shrink-0">
-                <Bot className="w-5 h-5" />
-              </div>
-              <div className="flex-1">
-                {/* REPLACED: Use markdown for streaming too */}
-                <div className="prose prose-invert max-w-none">
-                  <ReactMarkdown
-                    remarkPlugins={[remarkGfm]}
-                    components={{
-                      code(props) {
-                        const { className, children, ...rest } = props;
-                        const isInline = !className?.includes('language-');
-                        return isInline ? (
-                          <code className="px-1.5 py-0.5 bg-gray-800 rounded text-sm font-mono text-blue-400" {...rest}>
-                            {children || ''}
-                          </code>
-                        ) : (
-                          <pre className="bg-gray-950 p-4 rounded-lg overflow-x-auto">
-                            <code className="text-sm font-mono text-gray-100">{children || ''}</code>
-                          </pre>
-                        );
-                      },
-                      p(props) {
-                        const { children } = props;
-                        return <p className="text-white mb-2 last:mb-0">{children || ''}</p>;
-                      },
-                      a(props) {
-                        const { href, children } = props;
-                        return (
-                          <a
-                            href={href}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-400 hover:text-blue-300 underline"
-                          >
-                            {children || ''}
-                          </a>
-                        );
-                      },
-                      ul(props) {
-                        const { children } = props;
-                        return <ul className="list-disc list-inside text-white mb-4 space-y-1">{children || ''}</ul>;
-                      },
-                      ol(props) {
-                        const { children } = props;
-                        return <ol className="list-decimal list-inside text-white mb-4 space-y-1">{children || ''}</ol>;
-                      },
-                      h1(props) {
-                        const { children } = props;
-                        return <h1 className="text-2xl font-bold text-white mb-4 mt-6">{children || ''}</h1>;
-                      },
-                      h2(props) {
-                        const { children } = props;
-                        return <h2 className="text-xl font-bold text-white mb-3 mt-5">{children || ''}</h2>;
-                      },
-                      h3(props) {
-                        const { children } = props;
-                        return <h3 className="text-lg font-bold text-white mb-2 mt-4">{children || ''}</h3>;
-                      },
-                      blockquote(props) {
-                        const { children } = props;
-                        return (
-                          <blockquote className="border-l-4 border-gray-600 pl-4 italic text-gray-300 my-4">
-                            {children || ''}
-                          </blockquote>
-                        );
-                      },
-                    }}
-                  >
-                    {currentResponse}
-                  </ReactMarkdown>
-                </div>
-                <span className="inline-block w-1 h-4 bg-white animate-pulse ml-1" />
-              </div>
-            </div>
+            <StreamingResponse content={currentResponse} />
           )}
 
           {/* Loading indicator */}

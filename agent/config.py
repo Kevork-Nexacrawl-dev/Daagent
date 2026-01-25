@@ -69,6 +69,12 @@ class Config:
     MAX_ITERATIONS = int(os.getenv("MAX_ITERATIONS", 25))  # Raised for complex tasks
     TEMPERATURE = float(os.getenv("TEMPERATURE", 0.7))
     
+    # Conversation context management
+    MAX_CONTEXT_TOKENS = int(os.getenv("MAX_CONTEXT_TOKENS", 32000))  # Total context window
+    CONTEXT_RESERVE_TOKENS = int(os.getenv("CONTEXT_RESERVE_TOKENS", 4000))  # Reserve for response
+    ENABLE_CONTEXT_SUMMARIZATION = os.getenv("ENABLE_CONTEXT_SUMMARIZATION", "true").lower() == "true"
+    CONTEXT_SUMMARY_TRIGGER_RATIO = float(os.getenv("CONTEXT_SUMMARY_TRIGGER_RATIO", 0.8))  # When to summarize
+    
     # MCP Warehouse integration
     MCP_WAREHOUSE_PATH = os.getenv(
         "MCP_WAREHOUSE_PATH",

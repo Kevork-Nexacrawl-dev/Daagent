@@ -25,6 +25,202 @@ from agent.model_selector import ModelSelector
 import hashlib
 
 
+class ConversationContextManager:
+    """
+    Manages conversation context with token-based truncation and summarization.
+    
+    Features:
+    - Token-aware context management
+    - Automatic summarization of old messages
+    - Configurable context limits
+    """
+    
+    def __init__(self):
+        """Initialize context manager with empty history"""
+        self.messages = []  # List of {"role": str, "content": str} dicts
+        self.summaries = []  # List of summary messages
+    
+    def add_message(self, role: str, content: str) -> None:
+        """
+        Add a message to the conversation context.
+        
+        Args:
+            role: Message role ("user", "assistant", "system", "tool")
+            content: Message content
+        """
+        self.messages.append({"role": role, "content": content})
+    
+    def get_messages(self) -> List[Dict[str, str]]:
+        """
+        Get current conversation messages, potentially truncated/summarized.
+        
+        Returns:
+            List of message dictionaries
+        """
+        # If summarization is disabled or we haven't hit limits, return all
+        if not Config.ENABLE_CONTEXT_SUMMARIZATION:
+            return self.messages.copy()
+        
+        # Check if we need to truncate/summarize
+        total_tokens = self._estimate_total_tokens()
+        effective_limit = Config.MAX_CONTEXT_TOKENS - Config.CONTEXT_RESERVE_TOKENS
+        
+        if total_tokens <= effective_limit:
+            return self.messages.copy()
+        
+        # Need to truncate - start with summaries, then recent messages
+        return self._build_truncated_context(effective_limit)
+    
+    def _estimate_total_tokens(self) -> int:
+        """Estimate total tokens in current context"""
+        total_chars = 0
+        for msg in self.messages:
+            total_chars += len(msg.get("content", ""))
+        # Rough conversion: ~4 chars per token
+        return total_chars // 4
+    
+    def _build_truncated_context(self, max_tokens: int) -> List[Dict[str, str]]:
+        """
+        Build truncated context that fits within token limit.
+        
+        Strategy:
+        1. Include all summaries (they're condensed)
+        2. Add recent messages until we hit the limit
+        3. If still over limit, summarize oldest messages
+        
+        Args:
+            max_tokens: Maximum tokens to use
+            
+        Returns:
+            Truncated message list
+        """
+        context = []
+        current_tokens = 0
+        
+        # Always include summaries first (they're already condensed)
+        for summary in self.summaries:
+            summary_tokens = len(summary["content"]) // 4
+            if current_tokens + summary_tokens <= max_tokens:
+                context.append(summary)
+                current_tokens += summary_tokens
+            else:
+                break
+        
+        # Add recent messages from the end
+        recent_messages = []
+        for msg in reversed(self.messages):
+            msg_tokens = len(msg["content"]) // 4
+            if current_tokens + msg_tokens <= max_tokens:
+                recent_messages.insert(0, msg)  # Insert at beginning to maintain order
+                current_tokens += msg_tokens
+            else:
+                break
+        
+        context.extend(recent_messages)
+        
+        # If we still don't have enough space and have old messages to summarize
+        if current_tokens > max_tokens and len(self.messages) > len(recent_messages):
+            context = self._summarize_and_rebuild(context, max_tokens)
+        
+        return context
+    
+    def _summarize_and_rebuild(self, current_context: List[Dict], max_tokens: int) -> List[Dict[str, str]]:
+        """
+        Create a summary of old messages and rebuild context.
+        
+        Args:
+            current_context: Current truncated context
+            max_tokens: Maximum tokens allowed
+            
+        Returns:
+            Context with summary prepended
+        """
+        # Find how many old messages we can summarize
+        old_messages = []
+        for msg in self.messages:
+            if msg not in current_context:
+                old_messages.append(msg)
+        
+        if not old_messages:
+            return current_context
+        
+        # Create summary of old messages
+        summary_content = self._create_conversation_summary(old_messages)
+        summary_msg = {
+            "role": "system",
+            "content": f"Previous conversation summary: {summary_content}"
+        }
+        
+        # Add summary to our summaries list for future use
+        self.summaries.append(summary_msg)
+        
+        # Rebuild context with summary
+        new_context = [summary_msg]
+        current_tokens = len(summary_content) // 4
+        
+        # Add as many recent messages as possible
+        for msg in reversed(self.messages):
+            if msg in current_context:
+                msg_tokens = len(msg["content"]) // 4
+                if current_tokens + msg_tokens <= max_tokens:
+                    new_context.append(msg)
+                    current_tokens += msg_tokens
+        
+        return new_context
+    
+    def _create_conversation_summary(self, messages: List[Dict]) -> str:
+        """
+        Create a concise summary of conversation messages.
+        
+        Args:
+            messages: Messages to summarize
+            
+        Returns:
+            Summary string
+        """
+        # Simple summarization strategy - could be enhanced with LLM
+        user_queries = []
+        assistant_responses = []
+        tool_calls = []
+        
+        for msg in messages:
+            role = msg["role"]
+            content = msg["content"][:200]  # Truncate for summary
+            
+            if role == "user":
+                user_queries.append(content)
+            elif role == "assistant":
+                if "tool_calls" in msg or "I called" in content.lower():
+                    tool_calls.append(content)
+                else:
+                    assistant_responses.append(content)
+            elif role == "tool":
+                tool_calls.append(f"Tool result: {content[:100]}")
+        
+        summary_parts = []
+        if user_queries:
+            summary_parts.append(f"User asked about: {'; '.join(user_queries[:3])}")
+        if assistant_responses:
+            summary_parts.append(f"Assistant provided: {'; '.join(assistant_responses[:2])}")
+        if tool_calls:
+            summary_parts.append(f"Tools used: {len(tool_calls)} operations")
+        
+        return ". ".join(summary_parts) if summary_parts else "Previous conversation context"
+    
+    def reset(self) -> None:
+        """Reset conversation context"""
+        self.messages = []
+        self.summaries = []
+    
+    def get_stats(self) -> Dict[str, int]:
+        """Get context statistics"""
+        return {
+            "total_messages": len(self.messages),
+            "total_summaries": len(self.summaries),
+            "estimated_tokens": self._estimate_total_tokens()
+        }
+
+
 class UnifiedAgent:
     """
     General-purpose agent with:
@@ -51,7 +247,8 @@ class UnifiedAgent:
         self.query_classifier = QueryClassifier()
         self.response_cache = ResponseCache(ttl_hours=Config.CACHE_TTL_HOURS)
         
-        self.conversation_history = []  # Conversation history for context
+        # Initialize conversation context manager
+        self.context_manager = ConversationContextManager()
         
         # Initialize tool registry for auto-discovery (lazy loading)
         self.tool_registry = ToolRegistry()
@@ -68,6 +265,7 @@ class UnifiedAgent:
             sys.stderr.write(f"   Tools: {'Not loaded yet (lazy)' if Config.ENABLE_LAZY_TOOLS else f'{len(self.available_tools)} available'}\n")
             sys.stderr.write(f"   Providers: {len(self.provider_manager.providers)} loaded\n")
             sys.stderr.write(f"   Optimizations: {'ENABLED' if Config.ENABLE_QUERY_CLASSIFICATION else 'DISABLED'}\n")
+            sys.stderr.write(f"   Context Management: {'ENABLED' if Config.ENABLE_CONTEXT_SUMMARIZATION else 'DISABLED'} ({Config.MAX_CONTEXT_TOKENS} tokens)\n")
             sys.stderr.flush()
     
     def _ensure_tools_loaded(self):
@@ -417,10 +615,8 @@ class UnifiedAgent:
             self.provider_manager.log_usage(provider.provider_name.lower(), tokens_used)
             
             # Save conversation history
-            self.conversation_history.extend([
-                {"role": "user", "content": user_message},
-                {"role": "assistant", "content": final_response}
-            ])
+            self.context_manager.add_message("user", user_message)
+            self.context_manager.add_message("assistant", final_response)
             
             print("\n✅ Lite mode completed\n")
             if not self.web_mode:
@@ -692,10 +888,8 @@ class UnifiedAgent:
                 self.provider_manager.log_usage(provider.provider_name.lower(), tokens_used)
                 
                 # Save conversation history
-                self.conversation_history.extend([
-                    {"role": "user", "content": user_message},
-                    {"role": "assistant", "content": final_response}
-                ])
+                self.context_manager.add_message("user", user_message)
+                self.context_manager.add_message("assistant", final_response)
                 
                 print(f"\n✅ Task completed in {iteration} iteration(s)\n")
                 
@@ -798,7 +992,7 @@ class UnifiedAgent:
         
         messages = [
             {"role": "system", "content": system_prompt},
-            *self.conversation_history,
+            *self.context_manager.get_messages(),
             {"role": "user", "content": user_message}
         ]
         
@@ -808,7 +1002,7 @@ class UnifiedAgent:
         """
         Reset conversation history.
         """
-        self.conversation_history = []
+        self.context_manager.reset()
         if not self.web_mode:
             sys.stderr.write("Conversation history cleared\n")
             sys.stderr.flush()

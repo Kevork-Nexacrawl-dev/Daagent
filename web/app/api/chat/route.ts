@@ -4,6 +4,8 @@ import { NextRequest } from 'next/server';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
+const MAX_HISTORY_ITEMS = 20;
+
 interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
@@ -23,8 +25,8 @@ export async function POST(req: NextRequest) {
       return new Response('No messages provided', { status: 400 });
     }
 
-    // Get the latest user message
-    const userMessage = messages[messages.length - 1].content;
+    // Slice conversation history to last MAX_HISTORY_ITEMS
+    const recentMessages = messages.slice(-MAX_HISTORY_ITEMS);
     const selectedModel = body.selectedModel || 'auto';  // ADD THIS
 
     // Set up SSE stream
@@ -36,7 +38,6 @@ export async function POST(req: NextRequest) {
           '-u', 
           '-m', 
           'agent', 
-          userMessage,
           '--model', selectedModel  // ADD THIS ARG
         ], {
           cwd: process.cwd() + '/../',  // Go up to daagent/ root
@@ -47,6 +48,10 @@ export async function POST(req: NextRequest) {
             DAAGENT_WEB_MODE: '1'  // Enable web mode for Python process
           }
         });
+
+        // Send conversation history via stdin
+        pythonProcess.stdin.write(JSON.stringify(recentMessages) + '\n');
+        pythonProcess.stdin.end();
 
         let buffer = '';
 

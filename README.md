@@ -110,7 +110,27 @@ OPENROUTER_API_KEY=your_key_here
 DEV_MODE=true
 PROVIDER=openrouter
 LOG_LEVEL=INFO
+
+# Context Window Management
+MAX_CONTEXT_TOKENS=32000          # Total context window size in tokens
+CONTEXT_RESERVE_TOKENS=4000       # Tokens reserved for AI response generation
+ENABLE_CONTEXT_SUMMARIZATION=true # Enable automatic context summarization
+CONTEXT_SUMMARY_TRIGGER_RATIO=0.8 # Ratio of context used before triggering summarization (0.0-1.0)
 ```
+
+#### Context Window Management
+
+Daagent includes advanced context window management to optimize performance and prevent token limit errors:
+
+- **`MAX_CONTEXT_TOKENS`**: Sets the total context window size in tokens. This should match your model's maximum context length (e.g., 32000 for most models, 128000 for larger ones).
+- **`CONTEXT_RESERVE_TOKENS`**: Reserves tokens for the AI's response generation. Prevents the context from filling up completely, leaving room for meaningful replies.
+- **`ENABLE_CONTEXT_SUMMARIZATION`**: When enabled, automatically summarizes older conversation history when approaching context limits to maintain continuity.
+- **`CONTEXT_SUMMARY_TRIGGER_RATIO`**: Defines when summarization kicks in as a ratio of total context used (0.8 = 80%). Lower values trigger earlier summarization for better performance.
+
+**Recommended Settings:**
+- For 32K models: `MAX_CONTEXT_TOKENS=32000`, `CONTEXT_RESERVE_TOKENS=4000`
+- For 128K models: `MAX_CONTEXT_TOKENS=128000`, `CONTEXT_RESERVE_TOKENS=8000`
+- For memory-intensive tasks: Lower `CONTEXT_SUMMARY_TRIGGER_RATIO` to 0.7
 
 ### CLI Configuration (config/cli_config.yaml)
 
