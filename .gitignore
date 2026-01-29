@@ -50,6 +50,7 @@ temp/
 # User data
 user_data/
 sessions/
+.memory/
 *.session
 
 # Build artifacts

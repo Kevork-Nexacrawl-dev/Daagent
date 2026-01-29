@@ -93,6 +93,17 @@ class Config:
     # Streaming configuration
     ENABLE_STREAMING = os.getenv("ENABLE_STREAMING", "true").lower() == "true"
     
+    # Memory system settings
+    MEMORY_DB_PATH = os.getenv("MEMORY_DB_PATH", ".memory/daagent.db")
+    MEMORY_LOG_DIR = os.getenv("MEMORY_LOG_DIR", ".memory/logs")
+    MEMORY_EXTRACTION_ENABLED = os.getenv("MEMORY_EXTRACTION_ENABLED", "true").lower() == "true"
+    MEMORY_MIN_TURNS_FOR_EXTRACTION = int(os.getenv("MEMORY_MIN_TURNS_FOR_EXTRACTION", "5"))
+    MEMORY_EXTRACTION_MODEL = os.getenv("MEMORY_EXTRACTION_MODEL", "openrouter:deepseek-v3")
+    MEMORY_EMBEDDING_PROVIDER = os.getenv("MEMORY_EMBEDDING_PROVIDER", "sentence-transformers")
+    MEMORY_EMBEDDING_MODEL = os.getenv("MEMORY_EMBEDDING_MODEL", "all-MiniLM-L6-v2")
+    MEMORY_RETENTION_DAYS = int(os.getenv("MEMORY_RETENTION_DAYS", "90"))
+    MEMORY_MAX_INJECTION_TOKENS = int(os.getenv("MEMORY_MAX_INJECTION_TOKENS", "200"))
+    
     @classmethod
     def get_model_for_task(cls, task_type: TaskType) -> str:
         """Select appropriate model based on task type and mode"""

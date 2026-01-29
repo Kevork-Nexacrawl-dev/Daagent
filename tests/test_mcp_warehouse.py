@@ -5,7 +5,8 @@ Tests for MCP warehouse integration.
 import pytest
 import json
 from unittest.mock import Mock, patch
-from tools.mcp.warehouse import MCPWarehouse, MCPToolAdapter
+from tools.mcp.warehouse import MCPWarehouse
+from tools.mcp.adapters import MCPToolAdapter
 
 
 def test_mcp_warehouse_unavailable():

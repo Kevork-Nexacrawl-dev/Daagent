@@ -1,17 +1,17 @@
 {
-  "timestamp": "2026-01-25T13:27:43.571358",
+  "timestamp": "2026-01-29T07:52:01.608735",
   "providers": {
     "ollama": {
       "requests_this_minute": 0,
       "requests_this_hour": 0,
-      "last_reset_minute": "2026-01-25T13:27:11.023648",
-      "last_reset_hour": "2026-01-25T13:27:11.023689"
+      "last_reset_minute": "2026-01-29T07:51:56.874612",
+      "last_reset_hour": "2026-01-29T07:51:56.874612"
     },
     "openrouter": {
       "requests_this_minute": 0,
       "requests_this_hour": 0,
-      "last_reset_minute": "2026-01-25T13:27:11.026270",
-      "last_reset_hour": "2026-01-25T13:27:11.026270"
+      "last_reset_minute": "2026-01-29T07:51:56.874612",
+      "last_reset_hour": "2026-01-29T07:51:56.874612"
     }
   },
   "usage_tracker": {

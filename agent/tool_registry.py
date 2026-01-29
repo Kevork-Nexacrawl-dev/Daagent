@@ -222,7 +222,8 @@ class ToolRegistry:
             warehouse_path: Path to mcp-module-manager directory
         """
         try:
-            from tools.mcp.warehouse import MCPWarehouse, MCPToolAdapter
+            from tools.mcp.warehouse import MCPWarehouse
+            from tools.mcp.adapters import MCPToolAdapter
             
             # Connect to warehouse
             self.warehouse = MCPWarehouse(warehouse_path)

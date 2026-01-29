@@ -250,6 +250,11 @@ class UnifiedAgent:
         # Initialize conversation context manager
         self.context_manager = ConversationContextManager()
         
+        # Initialize hybrid memory system
+        from agent.memory.hybrid_memory import HybridMemory
+        self.memory = HybridMemory()
+        self.session_id = self._generate_session_id()
+        
         # Initialize tool registry for auto-discovery (lazy loading)
         self.tool_registry = ToolRegistry()
         self.available_tools = []
@@ -266,7 +271,13 @@ class UnifiedAgent:
             sys.stderr.write(f"   Providers: {len(self.provider_manager.providers)} loaded\n")
             sys.stderr.write(f"   Optimizations: {'ENABLED' if Config.ENABLE_QUERY_CLASSIFICATION else 'DISABLED'}\n")
             sys.stderr.write(f"   Context Management: {'ENABLED' if Config.ENABLE_CONTEXT_SUMMARIZATION else 'DISABLED'} ({Config.MAX_CONTEXT_TOKENS} tokens)\n")
+            sys.stderr.write(f"   Memory System: {'ENABLED' if Config.MEMORY_EXTRACTION_ENABLED else 'DISABLED'}\n")
             sys.stderr.flush()
+    
+    def _generate_session_id(self) -> str:
+        """Generate unique session ID for memory tracking."""
+        import uuid
+        return str(uuid.uuid4())[:8]
     
     def _ensure_tools_loaded(self):
         """Ensure tools are loaded (lazy loading)"""
@@ -327,6 +338,21 @@ class UnifiedAgent:
         if task_type is None:
             task_type = self._detect_task_type(user_message)
         
+        # Step 3.5: Memory Integration - Store user message and retrieve relevant context
+        # Store user message in working memory
+        self.memory.store_working(
+            content=user_message,
+            metadata={"role": "user", "session_id": self.session_id}
+        )
+        
+        # Retrieve relevant memories for context injection
+        relevant_memories = self.memory.retrieve_relevant(
+            query=user_message,
+            task_type=self._classify_task_for_memory(user_message),
+            top_k=5,
+            session_id=self.session_id
+        )
+        
         # Step 4: Assess task complexity for provider selection
         complexity = self._assess_complexity(user_message, task_type)
         
@@ -349,29 +375,43 @@ class UnifiedAgent:
             sys.stderr.write(f"🎯 Task Type: {task_type.value} (complexity: {complexity})\n")
             sys.stderr.write(f"🏢 Provider: {provider.provider_name}\n")
             sys.stderr.write(f"🧠 Model: {model}\n")
+            sys.stderr.write(f"🧠 Memories Retrieved: {len(relevant_memories)}\n")
             sys.stderr.write(f"{'='*60}\n\n")
             sys.stderr.flush()
         
         # Step 6: Execute based on query type
+        # Format memory context for injection
+        memory_context = self.memory.format_for_injection(relevant_memories) if relevant_memories else None
+        
         if query_type == QueryType.INFORMATIONAL and Config.ENABLE_LAZY_TOOLS:
             # Lite mode: Single LLM call, no tools (skip tool loading)
-            response = self._execute_lite_mode(user_message, client, model, task_type, provider)
+            response = self._execute_lite_mode(user_message, client, model, task_type, provider, memory_context)
         else:
             # Full ReAct mode: Ensure tools are loaded, then use tool calling loop
             self._ensure_tools_loaded()
-            response = self._execute_react_mode(user_message, client, model, task_type, provider, query_type)
+            response = self._execute_react_mode(user_message, client, model, task_type, provider, query_type, memory_context)
         
         # Step 7: Cache response if applicable
         if Config.ENABLE_RESPONSE_CACHE and query_type == QueryType.CACHED:
             self.response_cache.put(user_message, response)
         
+        # Step 8: Store assistant response in memory
+        self.memory.store_working(
+            content=response,
+            metadata={"role": "assistant", "session_id": self.session_id}
+        )
+        
         return response
     
-    def _build_messages(self, user_message: str) -> List[Dict[str, str]]:
+    def _build_messages(self, user_message: str, memory_context: str = None) -> List[Dict[str, str]]:
         """Build message list with system prompt and conversation history"""
         
         # Get composed system prompt from prompt manager
         system_prompt = build_system_prompt()
+        
+        # Inject memory context if available
+        if memory_context:
+            system_prompt += "\n\n" + memory_context
         
         messages = [
             {"role": "system", "content": system_prompt},
@@ -462,6 +502,24 @@ class UnifiedAgent:
             return "simple"
         else:
             return base_complexity
+    
+    def _classify_task_for_memory(self, query: str) -> str:
+        """
+        Classify query type for adaptive memory retrieval.
+        
+        Returns: "recall", "knowledge", or "general"
+        """
+        recall_keywords = ["remember", "you said", "earlier", "last time", "previously"]
+        knowledge_keywords = ["what is", "how does", "explain", "define", "tell me about"]
+        
+        query_lower = query.lower()
+        
+        if any(kw in query_lower for kw in recall_keywords):
+            return "recall"
+        elif any(kw in query_lower for kw in knowledge_keywords):
+            return "knowledge"
+        else:
+            return "general"
     
     def _is_rate_limit_error(self, error: Exception) -> bool:
         """
@@ -569,7 +627,7 @@ class UnifiedAgent:
 
         return accumulated_content, tool_calls_accumulator
     
-    def _execute_lite_mode(self, user_message: str, client, model: str, task_type: TaskType, provider) -> str:
+    def _execute_lite_mode(self, user_message: str, client, model: str, task_type: TaskType, provider, memory_context: str = None) -> str:
         """
         Execute in lite mode: single LLM call without tools.
         
@@ -587,7 +645,7 @@ class UnifiedAgent:
             sys.stderr.write("🚀 Lite mode: Single LLM call (no tools)\n")
             sys.stderr.flush()
         
-        messages = self._build_messages_optimized(user_message, include_tools=False)
+        messages = self._build_messages_optimized(user_message, include_tools=False, memory_context=memory_context)
         
         try:
             if Config.ENABLE_STREAMING:
@@ -645,7 +703,7 @@ class UnifiedAgent:
             return f"I encountered an error: {e}"
     
     def _execute_react_mode(self, user_message: str, client, model: str, task_type: TaskType, 
-                           provider, query_type: QueryType) -> str:
+                           provider, query_type: QueryType, memory_context: str = None) -> str:
         """
         Execute in full ReAct mode with tool calling loop.
         
@@ -665,7 +723,8 @@ class UnifiedAgent:
             sys.stderr.flush()
         
         messages = self._build_messages_optimized(user_message, 
-                                                 include_tools=self._should_include_tools(query_type))
+                                                 include_tools=self._should_include_tools(query_type),
+                                                 memory_context=memory_context)
         
         iteration = 0
         max_iterations = Config.MAX_ITERATIONS
@@ -972,19 +1031,24 @@ class UnifiedAgent:
         # to return only relevant tools based on query type
         return self.available_tools
     
-    def _build_messages_optimized(self, user_message: str, include_tools: bool = True) -> List[Dict[str, str]]:
+    def _build_messages_optimized(self, user_message: str, include_tools: bool = True, memory_context: str = None) -> List[Dict[str, str]]:
         """
         Build message list optimized for the execution mode.
         
         Args:
             user_message: User's message
             include_tools: Whether tools are being used (affects prompt)
+            memory_context: Memory context to inject
             
         Returns:
             List of messages
         """
         # Get composed system prompt from prompt manager
         system_prompt = build_system_prompt()
+        
+        # Inject memory context if available
+        if memory_context:
+            system_prompt += "\n\n" + memory_context
         
         # For lite mode, could add a note about no tools available
         if not include_tools:
@@ -1006,3 +1070,25 @@ class UnifiedAgent:
         if not self.web_mode:
             sys.stderr.write("Conversation history cleared\n")
             sys.stderr.flush()
+    
+    def close_session(self) -> None:
+        """
+        Close the current session and extract memories.
+        Called when conversation ends (CLI exit, API session close).
+        """
+        try:
+            # Get full conversation history from working memory
+            conversation_history = self.memory.working_memory.copy()
+            
+            # Extract and consolidate memories
+            self.memory.extract_and_consolidate(
+                session_id=self.session_id,
+                conversation_history=conversation_history
+            )
+            
+            if not self.web_mode:
+                print("✅ Memory extraction complete")
+                
+        except Exception as e:
+            if not self.web_mode:
+                print(f"⚠️ Memory extraction failed: {e}")

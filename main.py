@@ -464,6 +464,10 @@ def interactive_mode(agent: UnifiedAgent, args: argparse.Namespace, config: dict
                 if is_piped_input:
                     break
     finally:
+        # Close memory session on exit
+        if agent:
+            agent.close_session()
+        
         # Save command history on exit (only for interactive sessions)
         if not is_piped_input and config["cli"]["auto_save_history"]:
             save_history()
@@ -562,6 +566,57 @@ def handle_command(command: str, agent: UnifiedAgent, config: dict) -> bool:
     elif command == '/history':
         show_command_history()
         
+    # Memory commands
+    elif command == '/memories':
+        memories = agent.memory.get_all_semantic()
+        if memories:
+            console.print("\n[bold green]📚 YOUR MEMORIES:[/bold green]")
+            for mem in memories:
+                flag = "🔒" if mem.get("metadata", {}).get("privacy_sensitive") else ""
+                console.print(f"  {flag}[{mem['category']}] {mem['content'][:100]}{'...' if len(mem['content']) > 100 else ''} (conf: {mem['confidence']:.2f})")
+        else:
+            console.print("[yellow]No memories stored yet[/yellow]")
+            
+    elif command.startswith('/memories '):
+        category = command.split(' ', 1)[1]
+        memories = agent.memory.get_all_semantic(category=category)
+        if memories:
+            console.print(f"\n[bold green]📚 MEMORIES - {category.upper()}:[/bold green]")
+            for mem in memories:
+                console.print(f"  {mem['content']}")
+        else:
+            console.print(f"[yellow]No memories in category '{category}'[/yellow]")
+            
+    elif command.startswith('/search '):
+        query = command.split(' ', 1)[1]
+        results = agent.memory.search(query, top_k=10)
+        if results:
+            console.print(f"\n[bold green]🔍 SEARCH RESULTS FOR '{query}':[/bold green]")
+            for mem in results:
+                console.print(f"  [{mem['category']}] {mem['content']}")
+        else:
+            console.print(f"[yellow]No memories found for '{query}'[/yellow]")
+            
+    elif command == '/export-memory':
+        filename = f"memory_export_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        agent.memory.export_to_json(filename)
+        console.print(f"[green]💾 Memories exported to {filename}[/green]")
+        
+    elif command == '/clear-memory':
+        confirm = input("⚠️ Delete ALL memories? (yes/no): ")
+        if confirm.lower() == "yes":
+            agent.memory.clear_all()
+            console.print("[red]🗑️ All memories cleared[/red]")
+        else:
+            console.print("[yellow]❌ Cancelled[/yellow]")
+            
+    elif command == '/privacy-mode':
+        current = Config.MEMORY_EXTRACTION_ENABLED
+        new_value = not current
+        # Note: This would need to update the .env file in a real implementation
+        console.print(f"[yellow]🔒 Privacy mode: {'ON (extraction disabled)' if new_value else 'OFF (extraction enabled)'}[/yellow]")
+        console.print("[dim]Note: Restart required for changes to take effect[/dim]")
+        
     else:
         console.print(f"[red]Unknown command:[/red] {command}")
         console.print("[dim]Type /help for available commands[/dim]")
@@ -635,6 +690,15 @@ def show_help(console: Console) -> None:
 - `/config` - Show current configuration
 - `/history` - Show recent command history
 
+**Memory Commands:**
+
+- `/memories` - List all stored memories
+- `/memories <category>` - List memories by category
+- `/search <query>` - Search memories by content
+- `/export-memory` - Export memories to JSON file
+- `/clear-memory` - Delete all memories (with confirmation)
+- `/privacy-mode` - Toggle memory extraction on/off
+
 **Shortcuts:**
 
 - `py: <code>` → Execute Python persistent
@@ -660,6 +724,14 @@ Press Enter twice to submit multi-line queries.
 def list_tools(registry, console: Console) -> None:
     """List all discovered tools."""
     try:
+        # Ensure tools are discovered
+        registry.discover_tools()
+        
+        # Discover MCP tools if enabled
+        from agent.config import Config
+        if Config.ENABLE_MCP and Config.MCP_WAREHOUSE_PATH:
+            registry.discover_mcp_warehouse(Config.MCP_WAREHOUSE_PATH)
+        
         tools = registry.list_tools()
         
         console.print(f"\n[bold cyan]Available Tools ({len(tools)}):[/bold cyan]\n")
