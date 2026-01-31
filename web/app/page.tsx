@@ -19,6 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { ModelSelector } from '@/components/ModelSelector';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -274,8 +275,7 @@ export default function ChatPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [currentResponse, setCurrentResponse] = useState('');
   const [currentToolCalls, setCurrentToolCalls] = useState<ToolCall[]>([]);
-  const [selectedModel, setSelectedModel] = useState<string>('auto');
-  const [activeModel, setActiveModel] = useState<string>('Auto (Smart)');
+  const [selectedModel, setSelectedModel] = useState<string>('qwen/qwen3-next-80b-a3b-instruct:free');
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -359,8 +359,7 @@ export default function ChatPage() {
                 streamedToolCalls = [...streamedToolCalls, newTool];
                 setCurrentToolCalls(streamedToolCalls);
               } else if (event.type === 'model_info') {
-                // NEW: Update active model display
-                setActiveModel(event.model_name);
+                // Model info received - no UI update needed
               } else if (event.type === 'done') {
                 // Finalize with local variables (no closure issues)
                 setMessages((prev) => [
@@ -418,44 +417,11 @@ export default function ChatPage() {
           </div>
 
           {/* Model Selector */}
-          <div className="flex items-center gap-4">
-            <div className="text-right">
-              <p className="text-xs text-gray-500">Active Model</p>
-              <p className="text-sm text-white font-medium">{activeModel}</p>
-            </div>
-            <Select value={selectedModel} onValueChange={setSelectedModel}>
-              <SelectTrigger className="w-[200px] bg-gray-900 border-gray-800 text-white">
-                <SelectValue placeholder="Select model" />
-              </SelectTrigger>
-              <SelectContent className="bg-gray-900 border-gray-800">
-                <SelectItem value="auto" className="text-white">
-                  <div className="flex items-center gap-2">
-                    <span>🎯 Auto (Smart)</span>
-                  </div>
-                </SelectItem>
-                <SelectItem value="deepseek-r1-free" className="text-white">
-                  <div className="flex items-center gap-2">
-                    <span>🆓 DeepSeek R1 Chimera (Free)</span>
-                  </div>
-                </SelectItem>
-                <SelectItem value="deepseek-v3-hf" className="text-white">
-                  <div className="flex items-center gap-2">
-                    <span>🤗 DeepSeek V3.2 (HuggingFace)</span>
-                  </div>
-                </SelectItem>
-                <SelectItem value="grok-4-fast" className="text-white">
-                  <div className="flex items-center gap-2">
-                    <span>⚡ Grok 4 Fast (Code)</span>
-                  </div>
-                </SelectItem>
-                <SelectItem value="claude-sonnet" className="text-white">
-                  <div className="flex items-center gap-2">
-                    <span>🧠 Claude Sonnet (Reasoning)</span>
-                  </div>
-                </SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <ModelSelector
+            selectedModel={selectedModel}
+            onModelChange={setSelectedModel}
+            isLoading={isLoading}
+          />
         </div>
       </header>
 

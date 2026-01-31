@@ -53,6 +53,108 @@ class Config:
         }
     }
     
+    # Free Tool-Capable Models Library
+    FREE_TOOL_MODELS = {
+        "qwen/qwen3-next-80b-a3b-instruct:free": {
+            "display_name": "Qwen3 Next 80B",
+            "supports_tools": True,
+            "supports_streaming": True,
+            "context_window": 262144,
+            "best_for": "General tool use, long context conversations",
+            "cost_per_1m": 0.0,
+            "tier": "free"
+        },
+        "arcee-ai/trinity-large-preview:free": {
+            "display_name": "Trinity Large",
+            "supports_tools": True,
+            "supports_streaming": True,
+            "context_window": 131072,  # 128K (512K native)
+            "best_for": "Complex toolchains, agent orchestration, Cline/Kilo Code",
+            "cost_per_1m": 0.0,
+            "tier": "free"
+        },
+        "deepseek/deepseek-v3-0324:free": {
+            "display_name": "DeepSeek V3",
+            "supports_tools": True,
+            "supports_streaming": True,
+            "context_window": 65536,
+            "best_for": "Fast tool execution, general purpose",
+            "cost_per_1m": 0.0,
+            "tier": "free"
+        },
+        "devstral/devstral-2-2512:free": {
+            "display_name": "Devstral 2 2512",
+            "supports_tools": True,
+            "supports_streaming": True,
+            "context_window": 262144,
+            "best_for": "Coding agents, developer tools, long code sessions",
+            "cost_per_1m": 0.0,
+            "tier": "free"
+        },
+        "nvidia/nemotron-3-nano:free": {
+            "display_name": "Nemotron 3 Nano",
+            "supports_tools": True,
+            "supports_streaming": True,
+            "context_window": 262144,
+            "best_for": "Multi-agent systems, collaborative workflows",
+            "cost_per_1m": 0.0,
+            "tier": "free"
+        },
+        "xiaomi/mimo-v2-flash:free": {
+            "display_name": "Mimo V2 Flash",
+            "supports_tools": True,
+            "supports_streaming": True,
+            "context_window": 262144,
+            "best_for": "Hybrid reasoning + tools, balanced performance",
+            "cost_per_1m": 0.0,
+            "tier": "free"
+        }
+    }
+    
+    # Free Reasoning-Only Models (No Tool Support)
+    FREE_REASONING_MODELS = {
+        "deepseek/deepseek-r1:free": {
+            "display_name": "DeepSeek R1",
+            "supports_tools": False,
+            "supports_streaming": True,
+            "context_window": 65536,
+            "best_for": "Pure reasoning, math, logic, analysis",
+            "cost_per_1m": 0.0,
+            "tier": "free"
+        },
+        "deepseek/deepseek-r1-distill-qwen:free": {
+            "display_name": "DeepSeek R1 Distill Qwen",
+            "supports_tools": False,
+            "supports_streaming": True,
+            "context_window": 65536,
+            "best_for": "Lightweight reasoning, fast inference",
+            "cost_per_1m": 0.0,
+            "tier": "free"
+        }
+    }
+    
+    # Paid Models (for reference)
+    PAID_MODELS = {
+        "x-ai/grok-4-fast": {
+            "display_name": "Grok 4 Fast",
+            "supports_tools": True,
+            "supports_streaming": True,
+            "context_window": 131072,
+            "best_for": "Code editing, technical tasks",
+            "cost_per_1m": 2.5,
+            "tier": "paid"
+        },
+        "deepseek-ai/DeepSeek-V3.2": {
+            "display_name": "DeepSeek V3.2",
+            "supports_tools": True,
+            "supports_streaming": True,
+            "context_window": 131072,
+            "best_for": "General purpose, balanced performance",
+            "cost_per_1m": 1.0,
+            "tier": "paid"
+        }
+    }
+    
     # Anthropic (for browser automation only)
     ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "")
     ANTHROPIC_MODEL = "claude-3-5-sonnet-20241022"

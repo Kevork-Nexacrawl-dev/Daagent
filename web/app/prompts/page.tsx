@@ -68,9 +68,10 @@ export default function PromptsPage() {
     setPromptLayers(data.layers);
   };
 
-  const handleFileUpload = async (files: File[]) => {
+  const handleFileUpload = async (files: File | File[]) => {
+    const fileArray = Array.isArray(files) ? files : [files];
     const formData = new FormData();
-    for (const file of files) {
+    for (const file of fileArray) {
       formData.append('files', file);
     }
     await fetch('/api/prompts', {

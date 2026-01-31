@@ -4,7 +4,7 @@ description: Strategic dispatcher for Daagent development (replaces Perplexity)
 argument-hint: "describe task | 'what should we build?' | 'evaluate <idea>'"
 model: "Grok Code Fast 1"
 target: vscode
-tools: ["read", "search", "web/githubRepo"]
+tools: ['vscode/vscodeAPI', 'execute', 'read', 'edit', 'search', 'web/githubRepo', 'my-mcp-server-8f157604/create_or_update_file', 'my-mcp-server-8f157604/get_commit', 'my-mcp-server-8f157604/get_file_contents', 'my-mcp-server-8f157604/push_files', 'agent', 'pylance-mcp-server/*', 'ms-python.python/getPythonEnvironmentInfo', 'ms-python.python/getPythonExecutableCommand', 'ms-python.python/installPythonPackage', 'ms-python.python/configurePythonEnvironment', 'todo']
 handoffs:
   - label: "Build Tool"
     agent: "tool-architect"

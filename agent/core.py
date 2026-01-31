@@ -279,6 +279,57 @@ class UnifiedAgent:
         import uuid
         return str(uuid.uuid4())[:8]
     
+    def _requires_tools(self, user_input: str) -> bool:
+        """
+        Detect if user query needs tool calling.
+        
+        Args:
+            user_input: User's message
+            
+        Returns:
+            True if tools are likely needed
+        """
+        tool_keywords = [
+            "use tool", "mcp", "filesystem", "file", "search", 
+            "web", "execute", "run code", "database", "api",
+            "read", "write", "create", "delete", "list",
+            "find", "search", "grep", "run", "execute"
+        ]
+        return any(kw in user_input.lower() for kw in tool_keywords)
+    
+    def _get_model_capabilities(self, model_id: str) -> Dict[str, Any]:
+        """
+        Get model capabilities from the model library.
+        
+        Args:
+            model_id: Model identifier
+            
+        Returns:
+            Model capability information
+        """
+        # Check free tool models
+        if model_id in Config.FREE_TOOL_MODELS:
+            return Config.FREE_TOOL_MODELS[model_id]
+        
+        # Check free reasoning models
+        if model_id in Config.FREE_REASONING_MODELS:
+            return Config.FREE_REASONING_MODELS[model_id]
+        
+        # Check paid models
+        if model_id in Config.PAID_MODELS:
+            return Config.PAID_MODELS[model_id]
+        
+        # Default fallback (assume tool support for unknown models)
+        return {
+            "display_name": model_id,
+            "supports_tools": True,
+            "supports_streaming": True,
+            "context_window": 65536,
+            "best_for": "General purpose",
+            "cost_per_1m": 0.0,
+            "tier": "unknown"
+        }
+    
     def _ensure_tools_loaded(self):
         """Ensure tools are loaded (lazy loading)"""
         if not self._tools_loaded:
@@ -361,12 +412,33 @@ class UnifiedAgent:
         client = provider.get_client()
         model = provider.get_model_name(task_type.value)
         
+        # Step 5.5: Validate model capabilities for tool requirements
+        requires_tools = self._requires_tools(user_message)
+        model_capabilities = self._get_model_capabilities(model)
+        
+        if requires_tools and not model_capabilities.get('supports_tools', True):
+            error_msg = (
+                f"Task requires tool calling, but {model_capabilities.get('display_name', model)} "
+                f"doesn't support tools. Switch to a tool-capable model: "
+                f"Qwen3 Next 80B, Trinity Large, DeepSeek V3, Devstral 2, Nemotron 3 Nano, or Mimo V2 Flash"
+            )
+            if self.web_mode:
+                # Emit error event for web UI
+                error_event = {
+                    "type": "error",
+                    "message": error_msg,
+                    "code": "MODEL_TOOL_MISMATCH"
+                }
+                print(json.dumps(error_event), flush=True)
+            raise ValueError(error_msg)
+        
         # Emit actual selected model info to web UI
         model_info = self.model_selector.get_model_info_by_id(model)
         model_event = {
             "type": "model_info",
             "model_name": model_info.get("display_name", model),
-            "cost_tier": model_info.get("cost_tier", "unknown")
+            "cost_tier": model_info.get("cost_tier", "unknown"),
+            "supports_tools": model_capabilities.get("supports_tools", True)
         }
         print(json.dumps(model_event), flush=True)
         
